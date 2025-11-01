@@ -23,7 +23,7 @@
 
 import pathlib
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List
+from typing import Any
 
 import channels
 import channels.auth
@@ -45,7 +45,7 @@ import channels_graphql_ws
 
 # Fake storage for the chat history. Do not do this in production, it
 # lives only in memory of the running server and does not persist.
-chats: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
+chats: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
 
 
 # ---------------------------------------------------------------------- TYPES & QUERIES
@@ -69,11 +69,11 @@ class Query(graphene.ObjectType):
     def resolve_history(self, info, chatroom):
         """Return chat history."""
         del info
-        return chats[chatroom] if chatroom in chats else []
+        return chats.get(chatroom, [])
 
 
 # ---------------------------------------------------------------------------- MUTATIONS
-class SendChatMessage(graphene.Mutation, name="SendChatMessagePayload"):  # type: ignore
+class SendChatMessage(graphene.Mutation, name='SendChatMessagePayload'):  # type: ignore
     """Send chat message."""
 
     ok = graphene.Boolean()
@@ -91,14 +91,10 @@ class SendChatMessage(graphene.Mutation, name="SendChatMessagePayload"):  # type
         user_session_key = info.context.session.session_key
 
         # Store a message.
-        chats[chatroom].append(
-            {"chatroom": chatroom, "text": text, "sender": user_session_key}
-        )
+        chats[chatroom].append({'chatroom': chatroom, 'text': text, 'sender': user_session_key})
 
         # Notify subscribers.
-        OnNewChatMessage.new_chat_message(
-            chatroom=chatroom, text=text, sender=user_session_key
-        )
+        OnNewChatMessage.new_chat_message(chatroom=chatroom, text=text, sender=user_session_key)
 
         return SendChatMessage(ok=True)
 
@@ -134,9 +130,9 @@ class OnNewChatMessage(channels_graphql_ws.Subscription):
         """Called to prepare the subscription notification message."""
 
         # The `self` contains payload delivered from the `broadcast()`.
-        new_msg_chatroom = self["chatroom"]
-        new_msg_text = self["text"]
-        new_msg_sender = self["sender"]
+        new_msg_chatroom = self['chatroom']
+        new_msg_text = self['text']
+        new_msg_sender = self['sender']
 
         # Method is called only for events on which client explicitly
         # subscribed, by returning proper subscription groups from the
@@ -146,13 +142,11 @@ class OnNewChatMessage(channels_graphql_ws.Subscription):
 
         # Avoid self-notifications.
         # The sender is identified by a `sessionid` cookie.
-        user_session_key = info.context.channels_scope["session"].session_key
+        user_session_key = info.context.channels_scope['session'].session_key
         if user_session_key == new_msg_sender:
             return None
 
-        return OnNewChatMessage(
-            chatroom=chatroom, text=new_msg_text, sender=new_msg_sender
-        )
+        return OnNewChatMessage(chatroom=chatroom, text=new_msg_text, sender=new_msg_sender)
 
     @classmethod
     def new_chat_message(cls, chatroom, text, sender):
@@ -165,7 +159,7 @@ class OnNewChatMessage(channels_graphql_ws.Subscription):
         """
         cls.broadcast(
             group=chatroom,
-            payload={"chatroom": chatroom, "text": text, "sender": sender},
+            payload={'chatroom': chatroom, 'text': text, 'sender': sender},
         )
 
 
@@ -184,9 +178,9 @@ async def demo_middleware(next_middleware, root, info, *args, **kwds):
     For more information read:
     https://docs.graphene-python.org/en/latest/execution/middleware/#middleware
     """
-    print("Demo middleware report")
-    print("    operation :", info.operation.operation)
-    print("    name      :", info.operation.name.value)
+    print('Demo middleware report')
+    print('    operation :', info.operation.operation)
+    print('    name      :', info.operation.name.value)
 
     # Invoke next middleware.
     result = next_middleware(root, info, *args, **kwds)
@@ -210,11 +204,9 @@ class MyGraphqlWsConsumer(channels_graphql_ws.GraphqlWsConsumer):
 # https://channels.readthedocs.io/en/latest/topics/authentication.html
 application = channels.routing.ProtocolTypeRouter(
     {
-        "http": django.core.asgi.get_asgi_application(),
-        "websocket": channels.auth.AuthMiddlewareStack(
-            channels.routing.URLRouter(
-                [django.urls.path("graphql-ws/", MyGraphqlWsConsumer.as_asgi())]
-            )
+        'http': django.core.asgi.get_asgi_application(),
+        'websocket': channels.auth.AuthMiddlewareStack(
+            channels.routing.URLRouter([django.urls.path('graphql-ws/', MyGraphqlWsConsumer.as_asgi())])
         ),
     }
 )
@@ -229,25 +221,23 @@ def graphiql(request):
     if not request.session.session_key:
         request.session.create()
     del request
-    graphiql_filepath = pathlib.Path(__file__).absolute().parent / "graphiql.html"
+    graphiql_filepath = pathlib.Path(__file__).absolute().parent / 'graphiql.html'
     # It is better to specify an encoding when opening documents.
     # Using the system default implicitly can create problems on other
     # operating systems.
-    with open(graphiql_filepath, encoding="utf-8") as f:
+    with open(graphiql_filepath, encoding='utf-8') as f:
         return django.http.response.HttpResponse(f.read())
 
 
 urlpatterns = [
-    django.urls.path("", graphiql),
+    django.urls.path('', graphiql),
     # `GraphQLView` used to handle mutations and queries requests
     # sended by http.
     django.urls.path(
-        "graphql/",
+        'graphql/',
         graphene_django.views.GraphQLView.as_view(
-            schema=graphene.Schema(
-                query=Query, mutation=Mutation, subscription=Subscription
-            )
+            schema=graphene.Schema(query=Query, mutation=Mutation, subscription=Subscription)
         ),
     ),
-    django.urls.path("admin", django.contrib.admin.site.urls),
+    django.urls.path('admin', django.contrib.admin.site.urls),
 ]

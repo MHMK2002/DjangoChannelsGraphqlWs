@@ -32,97 +32,87 @@ import channels_graphql_ws
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_confirmation_enabled(gql, subprotocol):
     """Test subscription confirmation message received when enabled."""
 
-    print("Establish WebSocket GraphQL connections with subscription confirmation.")
+    print('Establish WebSocket GraphQL connections with subscription confirmation.')
 
     client = gql(
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True, "confirm_subscriptions": True},
+        consumer_attrs={'strict_ordering': True, 'confirm_subscriptions': True},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Subscribe & check there is a subscription confirmation message.")
+    print('Subscribe & check there is a subscription confirmation message.')
 
-    sub_op_id = await client.start(
-        query="subscription op_name { on_trigger { is_ok } }", operation_name="op_name"
-    )
+    sub_op_id = await client.start(query='subscription op_name { on_trigger { is_ok } }', operation_name='op_name')
 
     resp = await client.receive_next(sub_op_id)
-    assert resp == {"data": None}
+    assert resp == {'data': None}
 
-    print("Trigger the subscription.")
+    print('Trigger the subscription.')
 
-    mut_op_id = await client.start(
-        query="mutation op_name { trigger { is_ok } }", operation_name="op_name"
-    )
+    mut_op_id = await client.start(query='mutation op_name { trigger { is_ok } }', operation_name='op_name')
     await client.receive_next(mut_op_id)
     await client.receive_complete(mut_op_id)
 
-    print("Check that subscription notification received.")
+    print('Check that subscription notification received.')
 
     resp = await client.receive_next(sub_op_id)
-    assert resp["data"]["on_trigger"]["is_ok"] is True
+    assert resp['data']['on_trigger']['is_ok'] is True
 
-    await client.assert_no_messages(
-        "Unexpected message received at the end of the test!"
-    )
+    await client.assert_no_messages('Unexpected message received at the end of the test!')
     await client.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_confirmation_disabled(gql, subprotocol):
     """Test subscription confirmation message absent when disabled."""
 
-    print("Establish WebSocket GraphQL connections w/o a subscription confirmation.")
+    print('Establish WebSocket GraphQL connections w/o a subscription confirmation.')
 
     client = gql(
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True, "confirm_subscriptions": False},
+        consumer_attrs={'strict_ordering': True, 'confirm_subscriptions': False},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Subscribe & check there is no subscription confirmation message.")
+    print('Subscribe & check there is no subscription confirmation message.')
 
     sub_op_id = await client.start(
-        query="subscription op_name { on_trigger { is_ok } }",
-        operation_name="op_name",
+        query='subscription op_name { on_trigger { is_ok } }',
+        operation_name='op_name',
     )
 
-    await client.assert_no_messages("Subscribe responded with a message!")
+    await client.assert_no_messages('Subscribe responded with a message!')
 
-    print("Trigger the subscription.")
+    print('Trigger the subscription.')
 
-    mut_op_id = await client.start(
-        query="mutation op_name { trigger { is_ok } }", operation_name="op_name"
-    )
+    mut_op_id = await client.start(query='mutation op_name { trigger { is_ok } }', operation_name='op_name')
     await client.receive_next(mut_op_id)
     await client.receive_complete(mut_op_id)
 
-    print("Check that subscription notification received.")
+    print('Check that subscription notification received.')
 
     resp = await client.receive_next(sub_op_id)
-    assert resp == {"data": {"on_trigger": {"is_ok": True}}}
+    assert resp == {'data': {'on_trigger': {'is_ok': True}}}
 
-    await client.assert_no_messages(
-        "Unexpected message received at the end of the test!"
-    )
+    await client.assert_no_messages('Unexpected message received at the end of the test!')
     await client.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_custom_confirmation_message(gql, subprotocol):
     """Test custom confirmation message."""
 
-    print("Establish WebSocket GraphQL connections with a custom confirmation message.")
+    print('Establish WebSocket GraphQL connections with a custom confirmation message.')
 
     expected_data = uuid.uuid4().hex
     expected_error = RuntimeError(uuid.uuid4().hex)
@@ -131,53 +121,45 @@ async def test_custom_confirmation_message(gql, subprotocol):
         mutation=Mutation,
         subscription=Subscription,
         consumer_attrs={
-            "strict_ordering": True,
-            "confirm_subscriptions": True,
-            "subscription_confirmation_message": {
-                "data": expected_data,
-                "errors": [expected_error],
+            'strict_ordering': True,
+            'confirm_subscriptions': True,
+            'subscription_confirmation_message': {
+                'data': expected_data,
+                'errors': [expected_error],
             },
         },
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Subscribe & check there is a subscription confirmation message.")
+    print('Subscribe & check there is a subscription confirmation message.')
 
-    sub_op_id = await client.start(
-        query="subscription op_name { on_trigger { is_ok } }", operation_name="op_name"
-    )
+    sub_op_id = await client.start(query='subscription op_name { on_trigger { is_ok } }', operation_name='op_name')
 
     with pytest.raises(channels_graphql_ws.GraphqlWsResponseError) as ex:
         await client.receive_next(sub_op_id)
     expected_errors = [
         {
-            "message": f"{type(expected_error).__name__}: {expected_error}",
-            "extensions": {"code": "RuntimeError"},
+            'message': f'{type(expected_error).__name__}: {expected_error}',
+            'extensions': {'code': 'RuntimeError'},
         }
     ]
-    payload = ex.value.response["payload"]
-    assert payload["errors"] == expected_errors, "Wrong confirmation errors received!"
-    assert (
-        payload["data"] == expected_data
-    ), "Wrong subscription confirmation message received!"
+    payload = ex.value.response['payload']
+    assert payload['errors'] == expected_errors, 'Wrong confirmation errors received!'
+    assert payload['data'] == expected_data, 'Wrong subscription confirmation message received!'
 
-    print("Trigger the subscription.")
+    print('Trigger the subscription.')
 
-    mut_op_id = await client.start(
-        query="mutation op_name { trigger { is_ok } }", operation_name="op_name"
-    )
+    mut_op_id = await client.start(query='mutation op_name { trigger { is_ok } }', operation_name='op_name')
     await client.receive_next(mut_op_id)
     await client.receive_complete(mut_op_id)
 
-    print("Check that subscription notification received.")
+    print('Check that subscription notification received.')
 
     resp = await client.receive_next(sub_op_id)
-    assert resp["data"]["on_trigger"]["is_ok"] is True
+    assert resp['data']['on_trigger']['is_ok'] is True
 
-    await client.assert_no_messages(
-        "Unexpected message received at the end of the test!"
-    )
+    await client.assert_no_messages('Unexpected message received at the end of the test!')
     await client.finalize()
 
 

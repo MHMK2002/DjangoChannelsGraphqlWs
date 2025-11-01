@@ -49,7 +49,7 @@ def event_loop(request):
 
     """
     del request
-    if sys.platform == "win32" and sys.version_info.minor >= 8:
+    if sys.platform == 'win32' and sys.version_info.minor >= 8:
         asyncio.set_event_loop_policy(
             asyncio.WindowsSelectorEventLoopPolicy()  # pylint: disable=no-member
         )
@@ -76,7 +76,7 @@ class DummyQuery(graphene.ObjectType):
     def resolve_value(self):
         """Resolver to return predefined value which can be tested."""
         del self
-        return "test"
+        return 'test'
 
 
 @pytest.fixture
@@ -149,7 +149,7 @@ def gql(db, request):
         subscription=None,
         consumer_attrs=None,
         communicator_kwds=None,
-        subprotocol="graphql-transport-ws",
+        subprotocol='graphql-transport-ws',
     ):
         """Setup GraphQL consumer and the communicator for tests."""
         # Graphene will throw a exception from the `graphene.Schema`
@@ -166,7 +166,7 @@ def gql(db, request):
 
             # Redefine the group prefix to be able to detect that it is
             # really changed.
-            group_name_prefix = "TEST"
+            group_name_prefix = 'TEST'
 
             schema = graphene.Schema(
                 query=query,
@@ -181,23 +181,17 @@ def gql(db, request):
                 setattr(ChannelsConsumer, attr, val)
 
         application = channels.routing.ProtocolTypeRouter(
-            {
-                "websocket": channels.routing.URLRouter(
-                    [django.urls.path("graphql/", ChannelsConsumer.as_asgi())]
-                )
-            }
+            {'websocket': channels.routing.URLRouter([django.urls.path('graphql/', ChannelsConsumer.as_asgi())])}
         )
 
         transport = channels_graphql_ws.testing.GraphqlWsTransport(
             application=application,
-            path="graphql/",
+            path='graphql/',
             communicator_kwds=communicator_kwds,
             subprotocol=subprotocol,
         )
 
-        client = channels_graphql_ws.testing.GraphqlWsClient(
-            transport, subprotocol=subprotocol
-        )
+        client = channels_graphql_ws.testing.GraphqlWsClient(transport, subprotocol=subprotocol)
         issued_clients.append(client)
         return client
 
@@ -205,12 +199,10 @@ def gql(db, request):
 
     # Assert all issued client are properly finalized.
     for client in reversed(issued_clients):
-        assert (
-            not client.connected
-        ), f"Test has left connected client: {request.node.nodeid}!"
+        assert not client.connected, f'Test has left connected client: {request.node.nodeid}!'
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope='session', autouse=True)
 def synchronize_inmemory_channel_layer():
     """Monkeypatch `InMemoryChannelLayer` to make it thread safe.
 
@@ -254,15 +246,15 @@ def synchronize_inmemory_channel_layer():
     # locked the mutex in `await receive` and then another coroutine
     # calls `await send`.
     callables_to_protect = [
-        "_clean_expired",
-        "_remove_from_groups",
-        "close",
-        "flush",
-        "group_add",
-        "group_discard",
-        "group_send",
-        "new_channel",
-        "send",
+        '_clean_expired',
+        '_remove_from_groups',
+        'close',
+        'flush',
+        'group_add',
+        'group_discard',
+        'group_send',
+        'new_channel',
+        'send',
     ]
     for attr_name in callables_to_protect:
         setattr(
@@ -272,7 +264,7 @@ def synchronize_inmemory_channel_layer():
         )
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope='function', autouse=True)
 def extra_print_in_the_beginning():
     """Improve output of `pytest -s` by adding EOL in the beginning."""
     print()

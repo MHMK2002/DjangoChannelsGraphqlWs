@@ -22,7 +22,6 @@
 """Test that intermediate notifications skipped."""
 
 import asyncio
-from typing import List
 
 import graphene
 import pytest
@@ -31,7 +30,7 @@ import channels_graphql_ws
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_notification_queue_limit(gql, subprotocol):
     """Test it is possible to skip intermediate notifications.
 
@@ -45,7 +44,7 @@ async def test_notification_queue_limit(gql, subprotocol):
     msgs_count = 100
     msg_proc_delay = 0.001
 
-    print("Prepare the test setup: GraphQL backend classes.")
+    print('Prepare the test setup: GraphQL backend classes.')
 
     class SendMessages(graphene.Mutation):
         """Send message mutation."""
@@ -57,7 +56,7 @@ async def test_notification_queue_limit(gql, subprotocol):
             """Broadcast many messages."""
             del root, info
             for idx in range(msgs_count):
-                OnNewMessage.broadcast(payload={"message": idx})
+                OnNewMessage.broadcast(payload={'message': idx})
             return SendMessages(is_ok=True)
 
     class OnNewMessage(channels_graphql_ws.Subscription):
@@ -77,7 +76,7 @@ async def test_notification_queue_limit(gql, subprotocol):
             # high load builder it will behave the same and skip
             # notifications it is unable to process.
             await asyncio.sleep(msg_proc_delay)
-            return OnNewMessage(message=payload["message"])
+            return OnNewMessage(message=payload['message'])
 
     class Subscription(graphene.ObjectType):
         """Root subscription."""
@@ -89,45 +88,45 @@ async def test_notification_queue_limit(gql, subprotocol):
 
         send_messages = SendMessages.Field()
 
-    print("Establish & initialize WebSocket GraphQL connections.")
+    print('Establish & initialize WebSocket GraphQL connections.')
 
     comm = gql(
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True},
+        consumer_attrs={'strict_ordering': True},
         subprotocol=subprotocol,
     )
     await comm.connect_and_init()
 
-    print("Trigger notifications.")
+    print('Trigger notifications.')
 
     await comm.start(
-        query="subscription op_name { on_new_message { message } }",
-        operation_name="op_name",
+        query='subscription op_name { on_new_message { message } }',
+        operation_name='op_name',
     )
 
     mut_op_id = await comm.start(
-        query="mutation op_name { send_messages { is_ok } }",
-        operation_name="op_name",
+        query='mutation op_name { send_messages { is_ok } }',
+        operation_name='op_name',
     )
     await comm.receive_next(mut_op_id)
     await comm.receive_complete(mut_op_id)
 
     # Here we store ids of processed notifications.
-    received_ids: List[int] = []
+    received_ids: list[int] = []
 
     while True:
         msg = await comm.receive()
-        print("Received message:", msg)
-        received_ids.append(msg["data"]["on_new_message"]["message"])
-        if msg["data"]["on_new_message"]["message"] == msgs_count - 1:
+        print('Received message:', msg)
+        received_ids.append(msg['data']['on_new_message']['message'])
+        if msg['data']['on_new_message']['message'] == msgs_count - 1:
             break
 
     await comm.finalize()
-    print("Received messages", received_ids)
+    print('Received messages', received_ids)
 
     # Check that there is always the first and the last message.
     # Make sure that we received not all of them
-    assert received_ids[0] == 0, "First message ID != 0!"
-    assert received_ids[-1] == msgs_count - 1, f"Last message ID != {msgs_count - 1}!"
-    assert len(received_ids) < msgs_count, "No messages skipped!"
+    assert received_ids[0] == 0, 'First message ID != 0!'
+    assert received_ids[-1] == msgs_count - 1, f'Last message ID != {msgs_count - 1}!'
+    assert len(received_ids) < msgs_count, 'No messages skipped!'

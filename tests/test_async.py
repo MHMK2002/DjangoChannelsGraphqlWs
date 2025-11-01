@@ -34,7 +34,7 @@ import channels_graphql_ws
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_broadcast(gql, subprotocol):
     """Test that the asynchronous 'broadcast()' call works correctly.
 
@@ -47,11 +47,11 @@ async def test_broadcast(gql, subprotocol):
     mutation.
     """
 
-    print("Establish & initialize WebSocket GraphQL connection.")
+    print('Establish & initialize WebSocket GraphQL connection.')
 
     # Test subscription notifications order, even with disabled ordering
     # notifications must be send in the order they were broadcasted.
-    settings = {"strict_ordering": False}
+    settings = {'strict_ordering': False}
     client_sender = gql(
         mutation=Mutation,
         subscription=Subscription,
@@ -67,20 +67,20 @@ async def test_broadcast(gql, subprotocol):
     await client_sender.connect_and_init()
     await client_recipient.connect_and_init()
 
-    print("Subscribe to GraphQL subscription.")
+    print('Subscribe to GraphQL subscription.')
     sub_id = await client_recipient.start(
         query="""
                 subscription on_message_sent {
                     on_message_sent { message }
                 }
                 """,
-        operation_name="on_message_sent",
+        operation_name='on_message_sent',
     )
 
     await client_recipient.assert_no_messages()
 
-    print("Trigger the subscription by mutation to receive notification.")
-    message = f"Hi! {str(uuid.uuid4().hex)}"
+    print('Trigger the subscription by mutation to receive notification.')
+    message = f'Hi! {str(uuid.uuid4().hex)}'
     msg_id = await client_sender.start(
         query="""
                 mutation send_message($message: String!) {
@@ -89,21 +89,21 @@ async def test_broadcast(gql, subprotocol):
                     }
                 }
                 """,
-        variables={"message": message},
-        operation_name="send_message",
+        variables={'message': message},
+        operation_name='send_message',
     )
 
     # Mutation response.
     resp = await client_sender.receive_next(msg_id)
-    assert resp["data"] == {"send_message": {"success": True}}
+    assert resp['data'] == {'send_message': {'success': True}}
     await client_sender.receive_complete(msg_id)
 
     # Subscription notification.
     resp = await client_recipient.receive_next(sub_id)
-    data = resp["data"]["on_message_sent"]
-    assert data["message"] == message, "Subscription notification contains wrong data!"
+    data = resp['data']['on_message_sent']
+    assert data['message'] == message, 'Subscription notification contains wrong data!'
 
-    print("Trigger sequence of timestamps with delayed publish.")
+    print('Trigger sequence of timestamps with delayed publish.')
     count = 10
     msg_id = await client_sender.start(
         query="""
@@ -113,36 +113,30 @@ async def test_broadcast(gql, subprotocol):
                     }
                 }
                 """,
-        variables={"count": count},
-        operation_name="send_timestamps",
+        variables={'count': count},
+        operation_name='send_timestamps',
     )
 
     # Mutation response.
     resp = await client_sender.receive_next(msg_id)
-    assert resp["data"] == {"send_timestamps": {"success": True}}
+    assert resp['data'] == {'send_timestamps': {'success': True}}
     await client_sender.receive_complete(msg_id)
 
     timestamps = []
     for _ in range(count):
         resp = await client_recipient.receive_next(sub_id)
-        data = resp["data"]["on_message_sent"]
-        timestamps.append(data["message"])
-    assert timestamps == sorted(
-        timestamps
-    ), "Server does not preserve messages order for subscription!"
+        data = resp['data']['on_message_sent']
+        timestamps.append(data['message'])
+    assert timestamps == sorted(timestamps), 'Server does not preserve messages order for subscription!'
 
-    print("Disconnect and wait the application to finish gracefully.")
-    await client_sender.assert_no_messages(
-        "Unexpected message received at the end of the test!"
-    )
+    print('Disconnect and wait the application to finish gracefully.')
+    await client_sender.assert_no_messages('Unexpected message received at the end of the test!')
     await client_sender.finalize()
-    await client_recipient.assert_no_messages(
-        "Unexpected message received at the end of the test!"
-    )
+    await client_recipient.assert_no_messages('Unexpected message received at the end of the test!')
     await client_recipient.finalize()
 
 
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 @pytest.mark.asyncio
 async def test_subscribe_unsubscribe(gql, subprotocol):
     """Test that the asynchronous `unsubscribe()` works.
@@ -155,39 +149,39 @@ async def test_subscribe_unsubscribe(gql, subprotocol):
     same eventloop.
     """
 
-    print("Establish & initialize WebSocket GraphQL connection.")
+    print('Establish & initialize WebSocket GraphQL connection.')
 
     # Test subscription notifications order, even with disabled ordering
     # notifications must be send in the order they were broadcasted.
     client = gql(mutation=Mutation, subscription=Subscription, subprotocol=subprotocol)
     await client.connect_and_init()
 
-    print("Subscribe to GraphQL subscription.")
+    print('Subscribe to GraphQL subscription.')
     sub_id = await client.start(
         query="""
                 subscription on_message_sent {
                     on_message_sent { message }
                 }
                 """,
-        operation_name="on_message_sent",
+        operation_name='on_message_sent',
     )
     await client.complete(sub_id)
     # If server was not able to handle unsubscribe command, then test
     # will hang here.
-    await client.receive(assert_type="complete")
+    await client.receive(assert_type='complete')
     await client.finalize()
 
 
 # ---------------------------------------------------------------- GRAPHQL BACKEND SETUP
 
 
-class SendMessage(graphene.Mutation, name="SendMessagePayload"):  # type: ignore
+class SendMessage(graphene.Mutation, name='SendMessagePayload'):  # type: ignore
     """Test mutation to send message to `OnMessageSent` subscription."""
 
     class Arguments:
         """That is how mutation arguments are defined."""
 
-        message = graphene.String(description="Some text notification.", required=True)
+        message = graphene.String(description='Some text notification.', required=True)
 
     success = graphene.Boolean()
 
@@ -196,11 +190,11 @@ class SendMessage(graphene.Mutation, name="SendMessagePayload"):  # type: ignore
         """Send notification and return `success` status."""
         del root, info
 
-        await OnMessageSent.broadcast(payload={"message": message})
+        await OnMessageSent.broadcast(payload={'message': message})
         return SendMessage(success=True)
 
 
-class SendTimestamps(graphene.Mutation, name="SendTimestampsPayload"):  # type: ignore
+class SendTimestamps(graphene.Mutation, name='SendTimestampsPayload'):  # type: ignore
     """Send monotonic timestamps by `OnMessageSent` subscription.
 
     Broadcast messages contains timestamp and publish delay, while
@@ -213,7 +207,7 @@ class SendTimestamps(graphene.Mutation, name="SendTimestampsPayload"):  # type: 
     class Arguments:
         """That is how mutation arguments are defined."""
 
-        count = graphene.Int(description="Number of timestamps to send.", required=True)
+        count = graphene.Int(description='Number of timestamps to send.', required=True)
 
     success = graphene.Boolean()
 
@@ -225,7 +219,7 @@ class SendTimestamps(graphene.Mutation, name="SendTimestampsPayload"):  # type: 
 
         for idx in range(count):
             now = datetime.fromtimestamp(time.monotonic())
-            payload = {"message": now.isoformat(), "delay": (count - idx) / 10}
+            payload = {'message': now.isoformat(), 'delay': (count - idx) / 10}
             await OnMessageSent.broadcast(payload=payload)
 
         return SendTimestamps(success=True)
@@ -237,7 +231,7 @@ class OnMessageSent(channels_graphql_ws.Subscription):
     Subscribe to receive messages.
     """
 
-    message = graphene.String(description="Some text notification.", required=True)
+    message = graphene.String(description='Some text notification.', required=True)
 
     @staticmethod
     async def subscribe(payload, info):
@@ -249,8 +243,8 @@ class OnMessageSent(channels_graphql_ws.Subscription):
         """Publish query result to all subscribers may be with delay."""
         del info
 
-        time.sleep(payload.get("delay") or 0)
-        return OnMessageSent(message=payload["message"])
+        time.sleep(payload.get('delay') or 0)
+        return OnMessageSent(message=payload['message'])
 
 
 class Mutation(graphene.ObjectType):

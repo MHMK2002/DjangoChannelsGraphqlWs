@@ -29,7 +29,6 @@ import asyncio
 import pathlib
 import sys
 import uuid
-from typing import List
 
 # NOTE: On Windows with Python 3.8 enable selector back (default seems
 # to be changed in Python 3.8), otherwise we get `NotImplementedError`
@@ -56,7 +55,7 @@ from typing import List
 # NOTE: Actually this is already done in the `event_loop` fixture in the
 # `conftest.py` file, but this file imports earlier by the Pytest plugin
 # `pytest_django`. So we do this here as well.
-if sys.platform == "win32" and sys.version_info.minor >= 8:
+if sys.platform == 'win32' and sys.version_info.minor >= 8:
     asyncio.set_event_loop_policy(
         asyncio.WindowsSelectorEventLoopPolicy()  # pylint: disable=no-member
     )
@@ -66,41 +65,41 @@ BASE_DIR = pathlib.Path(__file__).absolute().parent.parent
 SECRET_KEY = str(uuid.uuid4())
 DEBUG = True
 MIDDLEWARE = [
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
 ]
 TEMPLATES = [
     {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.contrib.messages.context_processors.messages",
-                "django.contrib.auth.context_processors.auth",
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.contrib.messages.context_processors.messages',
+                'django.contrib.auth.context_processors.auth',
             ]
         },
     }
 ]
-INSTALLED_APPS: List[str] = [
-    "daphne",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.auth",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "django.contrib.admin",
-    "channels",
-    "graphene_django",
+INSTALLED_APPS: list[str] = [
+    'daphne',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.auth',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django.contrib.admin',
+    'channels',
+    'graphene_django',
 ]
-ALLOWED_HOSTS = ["*"]
-STATIC_URL = "/static/"
-STATICFILES_FINDERS = ["django.contrib.staticfiles.finders.AppDirectoriesFinder"]
+ALLOWED_HOSTS = ['*']
+STATIC_URL = '/static/'
+STATICFILES_FINDERS = ['django.contrib.staticfiles.finders.AppDirectoriesFinder']
 # In this simple example we use in-process in-memory Channel layer.
 # In a real-life cases you need Redis or something familiar.
-CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
-ROOT_URLCONF = "example"
-ASGI_APPLICATION = "example.application"
+CHANNEL_LAYERS = {'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'}}
+ROOT_URLCONF = 'example'
+ASGI_APPLICATION = 'example.application'
 
 # The database config is only needed to make serialization tests work.
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": "db.sqlite3"}}
+DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sqlite3'}}

@@ -1,5 +1,5 @@
 <!--
-Copyright (C) DATADVANCE, 2010-2023
+Copyright (C) Mohammad Hasan Mohammad Khani, 2023-2025
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the
@@ -22,6 +22,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 
 # Changelog
+
+## [1.0.1] - 2025-11-01
+
+- Fork the library to make it compatible with Django 5 and new versions of other libraries.
+- Change the library name to `django-channels-graphql-ws-next`.
 
 ## [1.0.0rc7] - 2023-08-17
 

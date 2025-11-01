@@ -1,5 +1,5 @@
 <!--
-Copyright (C) DATADVANCE, 2010-2023
+Copyright (C) Mohammad Hasan Mohammad Khani, 2023-2025
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the
@@ -21,18 +21,17 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 
-# Django Channels based WebSocket GraphQL server with Graphene-like subscriptions
+# Django Channels based WebSocket GraphQL server with Graphene-like subscriptions (Next)
 
-[![PyPI](https://img.shields.io/pypi/v/django-channels-graphql-ws.svg)](https://pypi.org/project/django-channels-graphql-ws/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/django-channels-graphql-ws.svg)](https://pypi.org/project/django-channels-graphql-ws/)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/django-channels-graphql-ws)](https://pypi.org/project/django-channels-graphql-ws/)
-[![GitHub Release Date](https://img.shields.io/github/release-date/datadvance/DjangoChannelsGraphqlWs)](https://github.com/datadvance/DjangoChannelsGraphqlWs/releases)
-[![Travis CI Build Status](https://travis-ci.com/datadvance/DjangoChannelsJobmanager.svg?branch=master)](https://travis-ci.com/datadvance/DjangoChannelsJobmanager)
-[![GitHub Actions Tests](https://github.com/datadvance/DjangoChannelsGraphqlWs/workflows/Tests/badge.svg)](https://github.com/datadvance/DjangoChannelsGraphqlWs/actions?query=workflow%3ATests)
-[![Code style](https://img.shields.io/badge/code%20style-black-black.svg)](https://github.com/ambv/black)
-[![PyPI - License](https://img.shields.io/pypi/l/django-channels-graphql-ws.svg)](https://github.com/datadvance/DjangoChannelsGraphqlWs/blob/master/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/django-channels-graphql-ws-next.svg)](https://pypi.org/project/django-channels-graphql-ws-next/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/django-channels-graphql-ws-next.svg)](https://pypi.org/project/django-channels-graphql-ws-next/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/django-channels-graphql-ws-next)](https://pypi.org/project/django-channels-graphql-ws-next/)
+[![GitHub Release Date](https://img.shields.io/github/release-date/MHMK2002/DjangoChannelsGraphqlWs)](https://github.com/MHMK2002/DjangoChannelsGraphqlWs/releases)
+[![GitHub Actions Tests](https://github.com/MHMK2002/DjangoChannelsGraphqlWs/workflows/Tests/badge.svg)](https://github.com/MHMK2002/DjangoChannelsGraphqlWs/actions?query=workflow%3ATests)
+[![Code style](https://img.shields.io/badge/ruff-black)](https://docs.astral.sh/ruff/)
+[![PyPI - License](https://img.shields.io/pypi/l/django-channels-graphql-ws-next.svg)](https://github.com/MHMK2002/DjangoChannelsGraphqlWs/blob/master/LICENSE)
 
-- [Django Channels based WebSocket GraphQL server with Graphene-like subscriptions](#django-channels-based-websocket-graphql-server-with-graphene-like-subscriptions)
+- [Django Channels based WebSocket GraphQL server with Graphene-like subscriptions (Next)](#django-channels-based-websocket-graphql-server-with-graphene-like-subscriptions-next)
   - [Features](#features)
   - [Installation](#installation)
   - [Getting started](#getting-started)
@@ -96,14 +95,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - Clients for the GraphQL WebSocket server:
     - AIOHTTP-based client.
     - Client for unit test based on the Channels testing communicator.
-- Requires Python 3.8 and newer. Tests run on 3.8, 3.9, 3.10.
+- Requires Python 3.10 and newer.
 - Works on Linux, macOS, and Windows.
 
 
 ## Installation
 
 ```shell
-pip install django-channels-graphql-ws
+pip install django-channels-graphql-ws-next
 ```
 
 

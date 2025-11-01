@@ -36,16 +36,16 @@ class DictAsObject:
     # ------------------------------------------------ WRAPPER FUNCTIONS
     def __getattr__(self, name):
         """Route attributes to the scope object."""
-        if name.startswith("_"):
-            raise AttributeError()
+        if name.startswith('_'):
+            raise AttributeError
         try:
             return self._scope[name]
         except KeyError as ex:
-            raise AttributeError() from ex
+            raise AttributeError from ex
 
     def __setattr__(self, name, value):
         """Route attributes to the scope object."""
-        if name.startswith("_"):
+        if name.startswith('_'):
             super().__setattr__(name, value)
         self._scope[name] = value
 

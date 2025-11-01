@@ -29,7 +29,6 @@ import asyncio
 import collections
 import hashlib
 import logging
-from typing import Optional
 
 import asgiref.sync
 import channels.db
@@ -160,7 +159,7 @@ class Subscription(graphene.ObjectType):
     # notifications come faster than server processes them. Setting this
     # to 1 drops all notifications in the queue except the latest one.
     # Useful to skip intermediate notifications, e.g. progress reports.
-    notification_queue_limit: Optional[int] = None
+    notification_queue_limit: int | None = None
 
     @classmethod
     def broadcast(cls, *, group=None, payload=None):
@@ -185,9 +184,7 @@ class Subscription(graphene.ObjectType):
             pass
         else:
             if event_loop.is_running():
-                return event_loop.create_task(
-                    cls.broadcast_async(group=group, payload=payload)
-                )
+                return event_loop.create_task(cls.broadcast_async(group=group, payload=payload))
 
         return cls.broadcast_sync(group=group, payload=payload)
 
@@ -196,9 +193,9 @@ class Subscription(graphene.ObjectType):
         """Broadcast, asynchronous version."""
         # Manually serialize the `payload` to allow transfer of Django
         # models inside `payload`, auto serialization does not do this.
-        serialized_payload = await channels.db.database_sync_to_async(
-            Serializer.serialize, thread_sensitive=False
-        )(payload)
+        serialized_payload = await channels.db.database_sync_to_async(Serializer.serialize, thread_sensitive=False)(
+            payload
+        )
 
         # Send the message to the Channels group.
         group = cls._group_name(group)
@@ -207,9 +204,9 @@ class Subscription(graphene.ObjectType):
         await group_send(
             group=group,
             message={
-                "type": "broadcast",
-                "group": group,
-                "payload": serialized_payload,
+                'type': 'broadcast',
+                'group': group,
+                'payload': serialized_payload,
             },
         )
 
@@ -221,16 +218,14 @@ class Subscription(graphene.ObjectType):
         serialized_payload = Serializer.serialize(payload)
 
         group = cls._group_name(group)
-        sync_channel_layer_group_send = asgiref.sync.async_to_sync(
-            cls._channel_layer().group_send
-        )
+        sync_channel_layer_group_send = asgiref.sync.async_to_sync(cls._channel_layer().group_send)
         # Will result in a call of `GraphqlWsConsumer.broadcast`.
         sync_channel_layer_group_send(
             group=group,
             message={
-                "type": "broadcast",
-                "group": group,
-                "payload": serialized_payload,
+                'type': 'broadcast',
+                'group': group,
+                'payload': serialized_payload,
             },
         )
 
@@ -262,23 +257,19 @@ class Subscription(graphene.ObjectType):
         """Unsubscribe, asynchronous version."""
         # Send the 'unsubscribe' message to the Channels group.
         group = cls._group_name(group)
-        await cls._channel_layer().group_send(
-            group=group, message={"type": "unsubscribe", "group": group}
-        )
+        await cls._channel_layer().group_send(group=group, message={'type': 'unsubscribe', 'group': group})
 
     @classmethod
     def unsubscribe_sync(cls, *, group=None):
         """Unsubscribe, synchronous version."""
         # Send the message to the Channels group.
         group = cls._group_name(group)
-        sync_channel_layer_group_send = asgiref.sync.async_to_sync(
-            cls._channel_layer().group_send
-        )
+        sync_channel_layer_group_send = asgiref.sync.async_to_sync(cls._channel_layer().group_send)
         sync_channel_layer_group_send(
             group=group,
             message={
-                "type": "unsubscribe",
-                "group": group,
+                'type': 'unsubscribe',
+                'group': group,
             },
         )
 
@@ -326,30 +317,23 @@ class Subscription(graphene.ObjectType):
         if not _meta:
             _meta = SubscriptionOptions(cls)
 
-        output = output or getattr(cls, "Output", None)
+        output = output or getattr(cls, 'Output', None)
         # Collect fields if output class is not explicitly defined.
         fields: dict = {}
         if not output:
             fields = collections.OrderedDict()
             for base in reversed(cls.__mro__):
-                fields.update(
-                    graphene.types.utils.yank_fields_from_attrs(
-                        base.__dict__, _as=graphene.Field
-                    )
-                )
+                fields.update(graphene.types.utils.yank_fields_from_attrs(base.__dict__, _as=graphene.Field))
             output = cls
 
         if not arguments:
-            input_class = getattr(cls, "Arguments", None)
-            if input_class:
-                arguments = graphene.utils.props.props(input_class)
-            else:
-                arguments = {}
+            input_class = getattr(cls, 'Arguments', None)
+            arguments = graphene.utils.props.props(input_class) if input_class else {}
 
         # Get `publish`, `subscribe`, and `unsubscribe` handlers.
-        subscribe = subscribe or getattr(cls, "subscribe", None)
-        publish = publish or getattr(cls, "publish", None)
-        unsubscribed = unsubscribed or getattr(cls, "unsubscribed", None)
+        subscribe = subscribe or getattr(cls, 'subscribe', None)
+        publish = publish or getattr(cls, 'publish', None)
+        unsubscribed = unsubscribed or getattr(cls, 'unsubscribed', None)
         assert publish is not None, (
             f"Subscription '{cls.__qualname__}' does not define a"
             " method 'publish'! All subscriptions must define"
@@ -376,17 +360,17 @@ class Subscription(graphene.ObjectType):
     @classmethod
     def _group_name(cls, group=None):
         """Group name based on the name of the subscription class."""
-        suffix = f"{cls.__module__}.{cls.__qualname__}"
+        suffix = f'{cls.__module__}.{cls.__qualname__}'
         if group is not None:
-            suffix += "-" + group
+            suffix += '-' + group
 
         # Wrap the suffix into SHA256 to guarantee that the length of
         # the group name is limited. Otherwise Channels will complain
         # about that the group name is wrong (actually is too long).
         suffix_sha256 = hashlib.sha256()
-        suffix_sha256.update(suffix.encode("utf-8"))
+        suffix_sha256.update(suffix.encode('utf-8'))
 
-        return f"{GraphqlWsConsumer.group_name_prefix}-{suffix_sha256.hexdigest()}"
+        return f'{GraphqlWsConsumer.group_name_prefix}-{suffix_sha256.hexdigest()}'
 
     @classmethod
     def _channel_layer(cls):
@@ -394,7 +378,7 @@ class Subscription(graphene.ObjectType):
         # We cannot simply check existence of channel layer in the
         # consumer constructor, so we added this property.
         channel_layer = channels.layers.get_channel_layer()
-        assert channel_layer is not None, "Channel layer is not configured!"
+        assert channel_layer is not None, 'Channel layer is not configured!'
         return channel_layer
 
 

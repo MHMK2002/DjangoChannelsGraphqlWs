@@ -34,42 +34,40 @@ import channels_graphql_ws
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_main_usecase(gql, subprotocol):
     """Test main use-case with the GraphQL over WebSocket."""
 
-    print("Establish & initialize WebSocket GraphQL connection.")
+    print('Establish & initialize WebSocket GraphQL connection.')
     client = gql(
         query=Query,
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True},
+        consumer_attrs={'strict_ordering': True},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Make simple GraphQL query and check the response.")
-    msg_id = await client.start(
-        query="query op_name { value }", operation_name="op_name"
-    )
+    print('Make simple GraphQL query and check the response.')
+    msg_id = await client.start(query='query op_name { value }', operation_name='op_name')
     resp = await client.receive_next(msg_id)
-    assert resp["data"]["value"] == Query.VALUE
+    assert resp['data']['value'] == Query.VALUE
     await client.receive_complete(msg_id)
 
-    print("Subscribe to GraphQL subscription.")
+    print('Subscribe to GraphQL subscription.')
     sub_id = await client.start(
         query="""
                 subscription op_name {
                     on_chat_message_sent(user_id: ALICE) { event }
                 }
                 """,
-        operation_name="op_name",
+        operation_name='op_name',
     )
 
     await client.assert_no_messages()
 
-    print("Trigger the subscription by mutation to receive notification.")
-    message = f"Hi! {str(uuid.uuid4().hex)}"
+    print('Trigger the subscription by mutation to receive notification.')
+    message = f'Hi! {str(uuid.uuid4().hex)}'
     msg_id = await client.start(
         query="""
                 mutation op_name($message: String!) {
@@ -78,31 +76,31 @@ async def test_main_usecase(gql, subprotocol):
                     }
                 }
                 """,
-        variables={"message": message},
-        operation_name="op_name",
+        variables={'message': message},
+        operation_name='op_name',
     )
 
     # Mutation response.
     resp = await client.receive_next(msg_id)
-    assert resp["data"] == {"send_chat_message": {"message": message}}
+    assert resp['data'] == {'send_chat_message': {'message': message}}
     resp = await client.receive_complete(msg_id)
 
-    print("Check that subscription notification were sent.")
+    print('Check that subscription notification were sent.')
     # Subscription notification.
     resp = await client.receive_next(sub_id)
-    event = resp["data"]["on_chat_message_sent"]["event"]
+    event = resp['data']['on_chat_message_sent']['event']
     assert json.loads(event) == {
         # pylint: disable=no-member
-        "user_id": UserId.ALICE.value,  # type: ignore[attr-defined]
-        "payload": message,
-    }, "Subscription notification contains wrong data!"
+        'user_id': UserId.ALICE.value,  # type: ignore[attr-defined]
+        'payload': message,
+    }, 'Subscription notification contains wrong data!'
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await client.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_subscribe_unsubscribe(gql, subprotocol):
     """Test subscribe-unsubscribe behavior with the GraphQL over WebSocket.
 
@@ -115,49 +113,49 @@ async def test_subscribe_unsubscribe(gql, subprotocol):
     5. Check subscription notifications: there are no notifications.
     """
 
-    print("Establish & initialize WebSocket GraphQL connection.")
+    print('Establish & initialize WebSocket GraphQL connection.')
     client = gql(
         query=Query,
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True},
+        consumer_attrs={'strict_ordering': True},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Subscribe to GraphQL subscription.")
+    print('Subscribe to GraphQL subscription.')
     sub_id = await client.start(
         query="""
                 subscription op_name { on_chat_message_sent(user_id: ALICE) { event } }
                 """,
-        operation_name="op_name",
+        operation_name='op_name',
     )
 
-    print("Stop subscription by id.")
+    print('Stop subscription by id.')
     await client.complete(sub_id)
     await client.receive_complete(sub_id)
 
-    print("Subscribe to GraphQL subscription.")
+    print('Subscribe to GraphQL subscription.')
     sub_id = await client.start(
         query="""
                 subscription op_name {
                     on_chat_message_sent(user_id: TOM) { event }
                 }
                 """,
-        operation_name="op_name",
+        operation_name='op_name',
     )
 
-    print("Stop all subscriptions for TOM.")
+    print('Stop all subscriptions for TOM.')
     msg_id = await client.start(
-        query="mutation op_name { kick_out_user(user_id: TOM) { success } }",
-        operation_name="op_name",
+        query='mutation op_name { kick_out_user(user_id: TOM) { success } }',
+        operation_name='op_name',
     )
     # Mutation & unsubscription responses.
     await client.receive_next(msg_id)
     await client.receive_complete(msg_id)
     await client.receive_complete(sub_id)
 
-    print("Trigger the subscription by mutation to receive notification.")
+    print('Trigger the subscription by mutation to receive notification.')
     msg_id = await client.start(
         query="""
                 mutation op_name {
@@ -166,7 +164,7 @@ async def test_subscribe_unsubscribe(gql, subprotocol):
                     }
                 }
                 """,
-        operation_name="op_name",
+        operation_name='op_name',
     )
     # Mutation response.
     await client.receive_next(msg_id)
@@ -174,16 +172,14 @@ async def test_subscribe_unsubscribe(gql, subprotocol):
 
     # Check notifications: there are no notifications! Previously,
     # we have unsubscribed from all subscriptions.
-    await client.assert_no_messages(
-        "Notification received in spite of we have unsubscribed from all subscriptions!"
-    )
+    await client.assert_no_messages('Notification received in spite of we have unsubscribed from all subscriptions!')
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await client.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_subscription_groups(gql, subprotocol):
     """Test notifications behavior with different subscription group.
 
@@ -217,7 +213,7 @@ async def test_subscription_groups(gql, subprotocol):
             query=Query,
             mutation=Mutation,
             subscription=Subscription,
-            consumer_attrs={"strict_ordering": True, "confirm_subscriptions": True},
+            consumer_attrs={'strict_ordering': True, 'confirm_subscriptions': True},
             subprotocol=subprotocol,
         )
         await client.connect_and_init()
@@ -228,13 +224,13 @@ async def test_subscription_groups(gql, subprotocol):
                         on_chat_message_sent(user_id: $user_id) { event }
                     }
                     """,
-            variables={"user_id": user_id},
-            operation_name="op_name",
+            variables={'user_id': user_id},
+            operation_name='op_name',
         )
 
         # Receive the subscription confirmation message.
         resp = await client.receive_next(sub_id)
-        assert resp == {"data": None}
+        assert resp == {'data': None}
 
         return sub_id, client
 
@@ -255,8 +251,8 @@ async def test_subscription_groups(gql, subprotocol):
                         }
                     }
                     """,
-            variables={"message": message, "user_id": user_id},
-            operation_name="op_name",
+            variables={'message': message, 'user_id': user_id},
+            operation_name='op_name',
         )
         # Mutation response.
         await client.receive_next(msg_id)
@@ -270,30 +266,30 @@ async def test_subscription_groups(gql, subprotocol):
             message: Expected message string.
 
         """
-        event = resp["data"]["on_chat_message_sent"]["event"]
+        event = resp['data']['on_chat_message_sent']['event']
         assert json.loads(event) == {
-            "user_id": user_id,
-            "payload": message,
-        }, "Subscription notification contains wrong data!"
+            'user_id': user_id,
+            'payload': message,
+        }, 'Subscription notification contains wrong data!'
 
-    print("Initialize the connection, create subscriptions.")
-    alice_id = "ALICE"
-    tom_id = "TOM"
+    print('Initialize the connection, create subscriptions.')
+    alice_id = 'ALICE'
+    tom_id = 'TOM'
     # Subscribe to messages for Alice.
     uid_alice, comm_alice = await create_and_subscribe(alice_id)
     # Subscribe to messages for TOM.
     uid_tom, comm_tom = await create_and_subscribe(tom_id)
 
-    print("Trigger subscription: send message to Tom.")
-    message = "Hi, Tom!"
+    print('Trigger subscription: send message to Tom.')
+    message = 'Hi, Tom!'
     await trigger_subscription(comm_alice, tom_id, message)
     # Check Tom's notifications.
     resp = await comm_tom.receive_next(uid_tom)
     check_resp(resp, UserId[tom_id].value, message)  # type: ignore[misc]
     # Any other did not receive any notifications.
     await comm_alice.assert_no_messages()
-    print("Trigger subscription: send message to Alice.")
-    message = "Hi, Alice!"
+    print('Trigger subscription: send message to Alice.')
+    message = 'Hi, Alice!'
     await trigger_subscription(comm_tom, alice_id, message)
     # Check Alice's notifications.
     resp = await comm_alice.receive_next(uid_alice)
@@ -301,8 +297,8 @@ async def test_subscription_groups(gql, subprotocol):
     # Any other did not receive any notifications.
     await comm_tom.assert_no_messages()
 
-    print("Trigger subscription: send message to all groups.")
-    message = "test... ping..."
+    print('Trigger subscription: send message to all groups.')
+    message = 'test... ping...'
     await trigger_subscription(comm_tom, None, message)
 
     print("Check Tom's and Alice's notifications.")
@@ -311,40 +307,40 @@ async def test_subscription_groups(gql, subprotocol):
     resp = await comm_alice.receive_next(uid_alice)
     check_resp(resp, UserId[alice_id].value, message)  # type: ignore[misc]
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await comm_tom.finalize()
     await comm_alice.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_ping(gql, subprotocol):
     """Test that server sends ping(keepalive) messages."""
 
-    print("Establish & initialize WebSocket GraphQL connection.")
+    print('Establish & initialize WebSocket GraphQL connection.')
     client = gql(
         query=Query,
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True, "send_ping_every": 0.05},
+        consumer_attrs={'strict_ordering': True, 'send_ping_every': 0.05},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
     async def receive_ping():
         response = await client.transport.receive()
-        assert response["type"] in ("ping", "ka"), "Non ping(ka) response received!"
+        assert response['type'] in ('ping', 'ka'), 'Non ping(ka) response received!'
 
     await receive_ping()
-    print("Receive several ping messages.")
+    print('Receive several ping messages.')
     for _ in range(3):
         await receive_ping()
 
-    if subprotocol == "graphql-ws":
-        print("Send connection termination message.")
-        await client.send_raw_message({"type": "connection_terminate"})
+    if subprotocol == 'graphql-ws':
+        print('Send connection termination message.')
+        await client.send_raw_message({'type': 'connection_terminate'})
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await client.finalize()
 
 
@@ -376,17 +372,17 @@ class OnChatMessageSent(channels_graphql_ws.Subscription):
     def subscribe(self, info, user_id=None):
         """Specify subscription groups when client subscribes."""
         del info
-        assert self is None, "Root `self` expected to be `None`!"
+        assert self is None, 'Root `self` expected to be `None`!'
         # Subscribe to the group corresponding to the user.
-        if not user_id is None:
-            return [f"user_{user_id}"]
+        if user_id is not None:
+            return [f'user_{user_id}']
         # Subscribe to default group.
         return []
 
     def publish(self, info, user_id):
         """Publish query result to the subscribers."""
         del info
-        event = {"user_id": user_id.value, "payload": self}
+        event = {'user_id': user_id.value, 'payload': self}
 
         return OnChatMessageSent(event=event)
 
@@ -394,7 +390,7 @@ class OnChatMessageSent(channels_graphql_ws.Subscription):
     def notify(cls, user_id, message):
         """Example of the `notify` classmethod usage."""
         # Find the subscription group for user.
-        group = None if user_id is None else f"user_{user_id}"
+        group = None if user_id is None else f'user_{user_id}'
         cls.broadcast(group=group, payload=message)
 
 
@@ -419,7 +415,7 @@ class SendChatMessage(graphene.Mutation):
     def mutate(self, info, message, user_id=None):
         """Send message to the user or all users."""
         del info
-        assert self is None, "Root `self` expected to be `None`!"
+        assert self is None, 'Root `self` expected to be `None`!'
 
         # Notify subscribers.
         OnChatMessageSent.notify(message=message, user_id=user_id)
@@ -443,9 +439,9 @@ class KickOutUser(graphene.Mutation):
     def mutate(self, info, user_id):
         """Unsubscribe everyone associated with the user_id."""
         del info
-        assert self is None, "Root `self` expected to be `None`!"
+        assert self is None, 'Root `self` expected to be `None`!'
 
-        OnChatMessageSent.unsubscribe(group=f"user_{user_id}")
+        OnChatMessageSent.unsubscribe(group=f'user_{user_id}')
 
         return KickOutUser(success=True)
 
@@ -467,12 +463,12 @@ class Query(graphene.ObjectType):
     """Root GraphQL query."""
 
     VALUE = str(uuid.uuid4().hex)
-    value = graphene.String(args={"issue_error": graphene.Boolean(default_value=False)})
+    value = graphene.String(args={'issue_error': graphene.Boolean(default_value=False)})
 
     def resolve_value(self, info, issue_error):
         """Resolver to return predefined value which can be tested."""
         del info
-        assert self is None, "Root `self` expected to be `None`!"
+        assert self is None, 'Root `self` expected to be `None`!'
         if issue_error:
             raise RuntimeError(Query.VALUE)
         return Query.VALUE

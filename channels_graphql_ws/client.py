@@ -21,7 +21,6 @@
 
 """GraphQL client."""
 
-
 import asyncio
 import textwrap
 import time
@@ -64,18 +63,18 @@ class GraphqlWsClient:
     def __init__(
         self,
         transport: _transport.GraphqlWsTransport,
-        subprotocol="graphql-transport-ws",
+        subprotocol='graphql-transport-ws',
     ):
         """Constructor."""
-        assert isinstance(
-            transport, _transport.GraphqlWsTransport
-        ), "Given transport does not implement the 'GraphqlWsTransport' interface!"
+        assert isinstance(transport, _transport.GraphqlWsTransport), (
+            "Given transport does not implement the 'GraphqlWsTransport' interface!"
+        )
         self._transport = transport
         self._is_connected = False
         assert subprotocol in (
-            "graphql-transport-ws",
-            "graphql-ws",
-        ), "Client supports only graphql-transport-ws and graphql-ws subprotocols!"
+            'graphql-transport-ws',
+            'graphql-ws',
+        ), 'Client supports only graphql-transport-ws and graphql-ws subprotocols!'
         self._subprotocol = subprotocol
 
     @property
@@ -95,9 +94,9 @@ class GraphqlWsClient:
         2. Initialize GraphQL connection.
         """
         await self._transport.connect()
-        await self._transport.send({"type": "connection_init", "payload": ""})
+        await self._transport.send({'type': 'connection_init', 'payload': ''})
         resp = await self._transport.receive()
-        assert resp["type"] == "connection_ack", f"Unexpected response `{resp}`!"
+        assert resp['type'] == 'connection_ack', f'Unexpected response `{resp}`!'
         self._is_connected = True
 
     # Default value for `id`, because `None` is also a valid value.
@@ -113,7 +112,7 @@ class GraphqlWsClient:
             The `payload` field of the message received.
 
         """
-        msg_type = "next" if self._subprotocol == "graphql-transport-ws" else "data"
+        msg_type = 'next' if self._subprotocol == 'graphql-transport-ws' else 'data'
         return await self.receive(assert_id=op_id, assert_type=msg_type)
 
     async def receive_complete(self, op_id):
@@ -124,11 +123,9 @@ class GraphqlWsClient:
                 to which the complete message should be sent.
 
         """
-        return await self.receive(assert_id=op_id, assert_type="complete")
+        return await self.receive(assert_id=op_id, assert_type='complete')
 
-    async def receive(
-        self, *, wait_id=None, assert_id=None, assert_type=None, raw_response=False
-    ):
+    async def receive(self, *, wait_id=None, assert_id=None, assert_type=None, raw_response=False):
         """Receive GraphQL message checking its content.
 
         Args:
@@ -148,19 +145,18 @@ class GraphqlWsClient:
             response = await self._transport.receive()
             if self._is_ping_pong_message(response):
                 continue
-            if wait_id is None or response["id"] == wait_id:
+            if wait_id is None or response['id'] == wait_id:
                 break
 
         if assert_type is not None:
-            assert response["type"] == assert_type, (
-                f"Type `{assert_type}` expected, but `{response['type']}` received!"
-                f" Response: {response}."
+            assert response['type'] == assert_type, (
+                f'Type `{assert_type}` expected, but `{response["type"]}` received! Response: {response}.'
             )
         if assert_id is not None:
-            assert response["id"] == assert_id, "Response id != expected id!"
+            assert response['id'] == assert_id, 'Response id != expected id!'
 
-        payload = response.get("payload", None)
-        if payload is not None and "errors" in payload or response["type"] == "error":
+        payload = response.get('payload', None)
+        if payload is not None and 'errors' in payload or response['type'] == 'error':
             raise GraphqlWsResponseError(response)
 
         if raw_response:
@@ -222,17 +218,15 @@ class GraphqlWsClient:
             The message identifier.
 
         """
-        msg_type = (
-            "subscribe" if self._subprotocol == "graphql-transport-ws" else "start"
-        )
+        msg_type = 'subscribe' if self._subprotocol == 'graphql-transport-ws' else 'start'
         payload = {
-            "query": textwrap.dedent(query),
-            "variables": variables or {},
-            "operationName": operation_name,
+            'query': textwrap.dedent(query),
+            'variables': variables or {},
+            'operationName': operation_name,
         }
         if msg_id is self.AUTO:
             msg_id = str(uuid.uuid4().hex)
-        message = {"type": msg_type, "payload": payload, "id": msg_id}
+        message = {'type': msg_type, 'payload': payload, 'id': msg_id}
         await self._transport.send(message)
         return msg_id
 
@@ -243,8 +237,8 @@ class GraphqlWsClient:
             op_id: Operation id that should be completed.
 
         """
-        msg_type = "complete" if self._subprotocol == "graphql-transport-ws" else "stop"
-        message = {"type": msg_type, "id": op_id}
+        msg_type = 'complete' if self._subprotocol == 'graphql-transport-ws' else 'stop'
+        message = {'type': msg_type, 'id': op_id}
         await self._transport.send(message)
 
     async def finalize(self):
@@ -303,12 +297,12 @@ class GraphqlWsClient:
     def _is_ping_pong_message(self, response):
         """Check if GQL response is "ping" or "pong" ("keepalive" for
         "graphql-ws" subprotocol)."""
-        msg_type = response.get("type")
+        msg_type = response.get('type')
         return (
-            msg_type in ("ping", "pong")
-            and self._subprotocol == "graphql-transport-ws"
-            or msg_type == "ka"
-            and self._subprotocol == "graphql-ws"
+            msg_type in ('ping', 'pong')
+            and self._subprotocol == 'graphql-transport-ws'
+            or msg_type == 'ka'
+            and self._subprotocol == 'graphql-ws'
         )
 
 
@@ -323,4 +317,4 @@ class GraphqlWsResponseError(Exception):
 
     def __str__(self):
         """Nice string representation."""
-        return f"{self.message or 'Error in GraphQL response'}: {self.response}!"
+        return f'{self.message or "Error in GraphQL response"}: {self.response}!'

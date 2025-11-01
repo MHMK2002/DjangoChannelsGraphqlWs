@@ -26,50 +26,25 @@ import pathlib
 import plumbum
 import pytest
 
-SOURCE_DIRS = ["channels_graphql_ws/", "tests/", "example/"]
+SOURCE_DIRS = ['channels_graphql_ws/', 'tests/', 'example/']
 PROJECT_ROOT_DIR = pathlib.Path(__file__).absolute().parent.parent
 
 
-@pytest.mark.parametrize("src_dir", SOURCE_DIRS)
-def test_pylint(src_dir):
-    """Run Pylint."""
-
-    pylint = plumbum.local["pylint"]
+@pytest.mark.parametrize('src_dir', SOURCE_DIRS)
+def test_ruff(src_dir):
+    """Run Ruff."""
+    ruff = plumbum.local['ruff']
     with plumbum.local.cwd(PROJECT_ROOT_DIR):
-        # There is the bug in pylint_django:
-        # https://github.com/PyCQA/pylint-django/issues/369#issuecomment-1305725496
-        #
-        # The `env` parameter should be removed once that bug is fixed.
-        result = pylint(src_dir, env={"PYTHONPATH": "."})
+        result = ruff('check', src_dir)
         if result:
-            print("\nPylint:", result)
+            print('\nRuff:', result)
 
 
-@pytest.mark.parametrize("src_dir", SOURCE_DIRS)
-def test_black(src_dir):
-    """Run Black."""
-    black = plumbum.local["black"]
-    with plumbum.local.cwd(PROJECT_ROOT_DIR):
-        result = black("--check", src_dir)
-        if result:
-            print("\nBlack:", result)
-
-
-@pytest.mark.parametrize("src_dir", SOURCE_DIRS)
-def test_isort(src_dir):
-    """Run Isort."""
-    isort = plumbum.local["isort"]
-    with plumbum.local.cwd(PROJECT_ROOT_DIR):
-        result = isort("--check-only", src_dir)
-        if result:
-            print("\nIsort:", result)
-
-
-@pytest.mark.parametrize("src_dir", SOURCE_DIRS)
+@pytest.mark.parametrize('src_dir', SOURCE_DIRS)
 def test_mypy(src_dir):
     """Run MyPy."""
-    mypy = plumbum.local["mypy"]
+    mypy = plumbum.local['mypy']
     with plumbum.local.cwd(PROJECT_ROOT_DIR):
         result = mypy(src_dir)
         if result:
-            print("\nMyPy:", result)
+            print('\nMyPy:', result)

@@ -29,7 +29,7 @@ import channels_graphql_ws
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_middleware_called_in_query(gql, subprotocol):
     """Check that middleware called during query request."""
 
@@ -40,29 +40,29 @@ async def test_middleware_called_in_query(gql, subprotocol):
         middleware_called = True
         return next_middleware(root, info, *args, **kwds)
 
-    print("Initialize WebSocket GraphQL connection with middleware enabled.")
+    print('Initialize WebSocket GraphQL connection with middleware enabled.')
     client = gql(
         query=Query,
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True, "middleware": [middleware]},
+        consumer_attrs={'strict_ordering': True, 'middleware': [middleware]},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Make simple query and assert that middleware function called.")
-    msg_id = await client.start(query="query { ok }")
+    print('Make simple query and assert that middleware function called.')
+    msg_id = await client.start(query='query { ok }')
     await client.receive_next(msg_id)
     await client.receive_complete(msg_id)
 
-    assert middleware_called, "Middleware is not called!"
+    assert middleware_called, 'Middleware is not called!'
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await client.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_middleware_called_in_mutation(gql, subprotocol):
     """Check that middleware called during mutation request."""
 
@@ -73,29 +73,29 @@ async def test_middleware_called_in_mutation(gql, subprotocol):
         middleware_called = True
         return next_middleware(root, info, *args, **kwds)
 
-    print("Initialize WebSocket GraphQL connection with middleware enabled.")
+    print('Initialize WebSocket GraphQL connection with middleware enabled.')
     client = gql(
         query=Query,
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True, "middleware": [middleware]},
+        consumer_attrs={'strict_ordering': True, 'middleware': [middleware]},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Make simple mutation and assert that middleware function called.")
-    msg_id = await client.start(query="mutation { noop { ok } }")
+    print('Make simple mutation and assert that middleware function called.')
+    msg_id = await client.start(query='mutation { noop { ok } }')
     await client.receive_next(msg_id)
     await client.receive_complete(msg_id)
 
-    assert middleware_called, "Middleware is not called!"
+    assert middleware_called, 'Middleware is not called!'
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await client.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_middleware_called_in_subscription(gql, subprotocol):
     """Check that middleware called during subscription processing."""
 
@@ -109,26 +109,24 @@ async def test_middleware_called_in_subscription(gql, subprotocol):
             result = await result
         return result
 
-    print("Initialize WebSocket GraphQL connection with middleware enabled.")
+    print('Initialize WebSocket GraphQL connection with middleware enabled.')
     client = gql(
         query=Query,
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True, "middleware": [middleware]},
+        consumer_attrs={'strict_ordering': True, 'middleware': [middleware]},
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Subscribe to GraphQL subscription.")
-    sub_id = await client.start(query="subscription { on_trigger{ ok } }")
+    print('Subscribe to GraphQL subscription.')
+    sub_id = await client.start(query='subscription { on_trigger{ ok } }')
     await client.assert_no_messages()
 
     # Middleware is not called during subscription initialization.
-    assert (
-        middleware_call_counter == 0
-    ), "Middleware is not called during subscribing to the subscription!"
+    assert middleware_call_counter == 0, 'Middleware is not called during subscribing to the subscription!'
 
-    print("Manually trigger the subscription.")
+    print('Manually trigger the subscription.')
     await OnTrigger.broadcast()
 
     # Receive subscription notification to guarantee that the
@@ -138,16 +136,14 @@ async def test_middleware_called_in_subscription(gql, subprotocol):
     # Middleware must be called two times:
     #  - to resolve "on_trigger";
     #  - to resolve "ok".
-    assert (
-        middleware_call_counter == 2
-    ), "Middleware is not called three times for subscription!"
+    assert middleware_call_counter == 2, 'Middleware is not called three times for subscription!'
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await client.finalize()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_middleware_invocation_order(gql, subprotocol):
     """Check that several middleware called in a proper order."""
 
@@ -161,27 +157,27 @@ async def test_middleware_invocation_order(gql, subprotocol):
         middleware_invocation_log.append(2)
         return next_middleware(root, info, *args, **kwds)
 
-    print("Initialize WebSocket GraphQL connection with middleware enabled.")
+    print('Initialize WebSocket GraphQL connection with middleware enabled.')
     client = gql(
         query=Query,
         mutation=Mutation,
         subscription=Subscription,
         consumer_attrs={
-            "strict_ordering": True,
-            "middleware": [middleware2, middleware1],
+            'strict_ordering': True,
+            'middleware': [middleware2, middleware1],
         },
         subprotocol=subprotocol,
     )
     await client.connect_and_init()
 
-    print("Make simple query and assert that middleware function called.")
-    msg_id = await client.start(query="query { ok }")
+    print('Make simple query and assert that middleware function called.')
+    msg_id = await client.start(query='query { ok }')
     await client.receive_next(msg_id)
     await client.receive_complete(msg_id)
 
-    assert middleware_invocation_log == [1, 2], "Middleware invocation order is wrong!"
+    assert middleware_invocation_log == [1, 2], 'Middleware invocation order is wrong!'
 
-    print("Disconnect and wait the application to finish gracefully.")
+    print('Disconnect and wait the application to finish gracefully.')
     await client.finalize()
 
 

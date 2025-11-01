@@ -53,18 +53,9 @@ import threading
 import time
 import traceback
 import weakref
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from typing import (
     Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
     cast,
 )
 
@@ -106,7 +97,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
     # The interval to send ping/keepalive messages
     # to the clients (seconds).
-    send_ping_every: Optional[float] = None
+    send_ping_every: float | None = None
 
     # Applies to `graphql-transport-ws` protocol only.
     # The amount of time for which the server will wait for
@@ -137,11 +128,11 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
     # The message sent to the client when subscription activation
     # confirmation is enabled.
-    subscription_confirmation_message: Dict[str, Any] = {"data": None, "errors": None}
+    subscription_confirmation_message: dict[str, Any] = {'data': None, 'errors': None}
 
     # Issue a warning to the log when operation takes longer than
     # specified number in seconds. None disables the warning.
-    warn_operation_timeout: Optional[float] = 1
+    warn_operation_timeout: float | None = 1
 
     # The size of the subscription notification queue. If there are more
     # notifications (for a single subscription) than the given number,
@@ -165,7 +156,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
     # - https://graphql-core-3.readthedocs.io/en/latest/diffs.html#custom-middleware
     # Docs about async middlewares are still missing - read the
     # GraphQL-core sources to know more.
-    middleware: Optional[graphql.Middleware] = None
+    middleware: graphql.Middleware | None = None
 
     async def on_connect(self, payload):
         """Client connection handler.
@@ -195,7 +186,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
     # ------------------------------------------------------------------- IMPLEMENTATION
 
     # A prefix of Channel groups with subscription notifications.
-    group_name_prefix: str = "GQLWS"
+    group_name_prefix: str = 'GQLWS'
 
     # Structure that holds subscription information.
     @dataclasses.dataclass
@@ -205,7 +196,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # Subscription identifier - protocol operation identifier.
         sid: int
         # Subscription groups the subscription belongs to.
-        groups: List[str]
+        groups: list[str]
         # A function which triggers subscription.
         enqueue_notification: Callable[[Any], None]
         # The callback to invoke when client unsubscribes.
@@ -216,7 +207,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
         assert self.schema is not None, (
             "An attribute 'schema' is not set! Subclasses must specify "
-            "the schema which processes GraphQL subscription queries."
+            'the schema which processes GraphQL subscription queries.'
         )
 
         # WebSocket subprotocol used for the GraphQL.
@@ -226,14 +217,12 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         self._graphql_ws_subprotocol = None
 
         # Registry of active (subscribed) subscriptions.
-        self._subscriptions: Dict[int, GraphqlWsConsumer._SubInf] = (
-            {}
-        )  # {'<sid>': '<SubInf>', ...}
+        self._subscriptions: dict[int, GraphqlWsConsumer._SubInf] = {}  # {'<sid>': '<SubInf>', ...}
         self._sids_by_group = {}  # {'<grp>': ['<sid0>', '<sid1>', ...], ...}
 
         # Tasks which send notifications to clients indexed by an
         # operation/subscription id.
-        self._notifier_tasks: Dict[int, asyncio.Task] = {}
+        self._notifier_tasks: dict[int, asyncio.Task] = {}
 
         # Task that sends ping/keepalive messages periodically.
         self._ping_task = None
@@ -265,9 +254,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # & complete/stop requests. Since the collection is weak, it
         # automatically throws away items when locks are garbage
         # collected.
-        self._operation_locks: weakref.WeakValueDictionary = (
-            weakref.WeakValueDictionary()
-        )
+        self._operation_locks: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
         # MiddlewareManager maintains internal cache for resolvers
         # wrapped with middlewares. Using the same manager for all
@@ -291,19 +278,15 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # starting with Python 3.7 it is a bytes. This can be a proper
         # change or just a bug in the Channels to be fixed. So let's
         # accept both variants until it becomes clear.
-        client_subprotocols = [
-            (sp.decode() if isinstance(sp, bytes) else sp)
-            for sp in self.scope["subprotocols"]
-        ]
+        client_subprotocols = [(sp.decode() if isinstance(sp, bytes) else sp) for sp in self.scope['subprotocols']]
 
-        if "graphql-transport-ws" in client_subprotocols:
-            self._graphql_ws_subprotocol = "graphql-transport-ws"
-        elif "graphql-ws" in client_subprotocols:
-            self._graphql_ws_subprotocol = "graphql-ws"
+        if 'graphql-transport-ws' in client_subprotocols:
+            self._graphql_ws_subprotocol = 'graphql-transport-ws'
+        elif 'graphql-ws' in client_subprotocols:
+            self._graphql_ws_subprotocol = 'graphql-ws'
         else:
             raise AssertionError(
-                "WebSocket Client does not request for the graphql-ws "
-                "or graphql-transport-ws subprotocols!"
+                'WebSocket Client does not request for the graphql-ws or graphql-transport-ws subprotocols!'
             )
 
         # Accept connection with the GraphQL-specific subprotocol.
@@ -318,20 +301,13 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             """
             await asyncio.sleep(self.connection_init_wait_timeout)
             if not self._connection_initialized:
-                LOG.warning(
-                    "The WebSocket connection will be closed due to: "
-                    "Connection initialization timeout!"
-                )
+                LOG.warning('The WebSocket connection will be closed due to: Connection initialization timeout!')
                 # According to `graphql-transport-ws` protocol
                 # description we must close connection immediately.
                 await self.close(4408)
 
-        if (
-            self.connection_init_wait_timeout != 0
-        ) and self._graphql_ws_subprotocol == "graphql-transport-ws":
-            self._connection_init_check_task = asyncio.create_task(
-                check_connection_initialization()
-            )
+        if (self.connection_init_wait_timeout != 0) and self._graphql_ws_subprotocol == 'graphql-transport-ws':
+            self._connection_init_check_task = asyncio.create_task(check_connection_initialization())
 
     async def disconnect(self, code):
         """Handle WebSocket disconnect.
@@ -345,20 +321,18 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # 1000 "Normal Closure", and 1001 "Going Away" as OK.
         # See: https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent
         if not code:
-            LOG.warning("WebSocket connection closed without a code!")
+            LOG.warning('WebSocket connection closed without a code!')
         elif code <= 1001:
-            LOG.debug("WebSocket connection closed with code: %s.", code)
+            LOG.debug('WebSocket connection closed with code: %s.', code)
         else:
-            LOG.warning("WebSocket connection closed with code: %s!", code)
+            LOG.warning('WebSocket connection closed with code: %s!', code)
 
         # The list of awaitables to simultaneously wait at the end.
-        wait_list: List[asyncio.Task] = []
+        wait_list: list[asyncio.Task] = []
 
         # Unsubscribe from the Channels groups.
         wait_list += [
-            asyncio.create_task(
-                self._channel_layer.group_discard(group, self.channel_name)
-            )
+            asyncio.create_task(self._channel_layer.group_discard(group, self.channel_name))
             for group in self._sids_by_group
         ]
 
@@ -407,37 +381,34 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         """
 
         # Extract message type based on which we select how to proceed.
-        msg_type = content["type"].upper()
+        msg_type = content['type'].upper()
 
-        if msg_type == "CONNECTION_INIT":
-            task = self._on_gql_connection_init(payload=content.get("payload"))
+        if msg_type == 'CONNECTION_INIT':
+            task = self._on_gql_connection_init(payload=content.get('payload'))
 
-        elif msg_type == "CONNECTION_TERMINATE":
+        elif msg_type == 'CONNECTION_TERMINATE':
             task = self._on_gql_connection_terminate()
 
         elif (
-            msg_type == "SUBSCRIBE"
-            and self._graphql_ws_subprotocol == "graphql-transport-ws"
-            or msg_type == "START"
-            and self._graphql_ws_subprotocol == "graphql-ws"
+            msg_type == 'SUBSCRIBE'
+            and self._graphql_ws_subprotocol == 'graphql-transport-ws'
+            or msg_type == 'START'
+            and self._graphql_ws_subprotocol == 'graphql-ws'
         ):
             # According to `graphql-transport-ws` protocol description,
             # if `subscribe` message received before the server has
             # acknowledged the connection through the `connection_ack`
             # message, we must close connection immediately
             # with code 4401.
-            if (
-                not self._connection_acknowledged
-                and self._graphql_ws_subprotocol == "graphql-transport-ws"
-            ):
+            if not self._connection_acknowledged and self._graphql_ws_subprotocol == 'graphql-transport-ws':
                 LOG.warning(
-                    "The WebSocket connection will be closed due to: "
-                    "`subscribe` message received before connection was acknowledged!"
+                    'The WebSocket connection will be closed due to: '
+                    '`subscribe` message received before connection was acknowledged!'
                 )
                 await self.close(code=4401)
                 return
 
-            op_id = content["id"]
+            op_id = content['id']
 
             # Create and lock a mutex for this particular operation id,
             # so COMPLETE/STOP processing for the same operation id will
@@ -445,9 +416,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             # stored in a weak collection so we do not have to manually
             # clean it up.
             if op_id in self._operation_locks:
-                raise graphql.error.GraphQLError(
-                    f"Operation with msg_id={op_id} is already running!"
-                )
+                raise graphql.error.GraphQLError(f'Operation with msg_id={op_id} is already running!')
             op_lock = asyncio.Lock()
             self._operation_locks[op_id] = op_lock
             await op_lock.acquire()
@@ -455,9 +424,9 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             async def on_subscribe():
                 try:
                     # User hook which raises to cancel processing.
-                    await self.on_operation(op_id, payload=content["payload"])
+                    await self.on_operation(op_id, payload=content['payload'])
                     # SUBSCRIBE/START message processing.
-                    await self._on_gql_subscribe(op_id, payload=content["payload"])
+                    await self._on_gql_subscribe(op_id, payload=content['payload'])
                 except Exception as ex:  # pylint: disable=broad-except
                     await self._send_gql_error(op_id, [ex])
                 finally:
@@ -466,12 +435,12 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             task = on_subscribe()
 
         elif (
-            msg_type == "COMPLETE"
-            and self._graphql_ws_subprotocol == "graphql-transport-ws"
-            or msg_type == "STOP"
-            and self._graphql_ws_subprotocol == "graphql-ws"
+            msg_type == 'COMPLETE'
+            and self._graphql_ws_subprotocol == 'graphql-transport-ws'
+            or msg_type == 'STOP'
+            and self._graphql_ws_subprotocol == 'graphql-ws'
         ):
-            op_id = content["id"]
+            op_id = content['id']
 
             async def on_complete():
                 # Wait until SUBSCRIBE/START message processing
@@ -481,26 +450,19 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
             task = on_complete()
 
-        elif (
-            msg_type == "PING"
-            and self._graphql_ws_subprotocol == "graphql-transport-ws"
-        ):
+        elif msg_type == 'PING' and self._graphql_ws_subprotocol == 'graphql-transport-ws':
             task = self._on_gql_ping()
 
-        elif (
-            msg_type == "PONG"
-            and self._graphql_ws_subprotocol == "graphql-transport-ws"
-        ):
+        elif msg_type == 'PONG' and self._graphql_ws_subprotocol == 'graphql-transport-ws':
             # Do nothing if PONG message received. According to the
             # protocol description, the PONG message is a response to
             # the PING message and does not require any action.
             return
 
         else:
-            if self._graphql_ws_subprotocol == "graphql-transport-ws":
+            if self._graphql_ws_subprotocol == 'graphql-transport-ws':
                 LOG.warning(
-                    "The WebSocket connection will be closed due to: "
-                    "Wrong message type '%s'!",
+                    "The WebSocket connection will be closed due to: Wrong message type '%s'!",
                     msg_type,
                 )
                 # According to `graphql-transport-ws` protocol
@@ -510,7 +472,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                 return
 
             task = self._send_gql_error(
-                content["id"] if "id" in content else None,
+                content.get('id', None),
                 [Exception(f"Wrong message type '{msg_type}'!")],
             )
 
@@ -548,7 +510,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         this method is either awaited directly or offloaded to an async
         task by the `broadcast` method (message handler).
         """
-        group = message["group"]
+        group = message['group']
 
         # Do nothing if group does not exist. It is quite possible for
         # a client and a backend to concurrently unsubscribe and send
@@ -556,7 +518,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         if group not in self._sids_by_group:
             return
 
-        payload = message["payload"]
+        payload = message['payload']
 
         # Put the payload to the notification queues of subscriptions
         # belonging to the subscription group. Drop the oldest payloads
@@ -573,7 +535,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         `Subscription.unsubscribe`. Here we figure out the group message
         received from and stop all the subscriptions in this group.
         """
-        group = message["group"]
+        group = message['group']
 
         # Do nothing if group does not exist. It is quite possible for
         # a client and a backend to unsubscribe from a subscription
@@ -586,16 +548,10 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # thinking about race condition between subscription and
         # unsubscription.
         if self._sids_by_group[group]:
-            message_type = (
-                "complete"
-                if self._graphql_ws_subprotocol == "graphql-transport-ws"
-                else "stop"
-            )
+            message_type = 'complete' if self._graphql_ws_subprotocol == 'graphql-transport-ws' else 'stop'
             await asyncio.wait(
                 [
-                    asyncio.create_task(
-                        self.receive_json({"type": message_type, "id": sid})
-                    )
+                    asyncio.create_task(self.receive_json({'type': message_type, 'id': sid}))
                     for sid in self._sids_by_group[group]
                 ]
             )
@@ -617,25 +573,17 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # server receives more than one `connection_init` message at any
         # given time we must close connection immediately
         # with code 4429.
-        if (
-            self._connection_initialized
-            and self._graphql_ws_subprotocol == "graphql-transport-ws"
-        ):
-            LOG.warning(
-                "The WebSocket connection will be closed due to: "
-                "Too many initialization requests!"
-            )
+        if self._connection_initialized and self._graphql_ws_subprotocol == 'graphql-transport-ws':
+            LOG.warning('The WebSocket connection will be closed due to: Too many initialization requests!')
             await self.close(code=4429)
             return
         try:
             # Notify subclass a new client is connected.
             await self.on_connect(payload)
         except Exception as ex:  # pylint: disable=broad-except
-            LOG.warning("GraphQL connection error: %s!", ex, exc_info=ex)
-            if self._graphql_ws_subprotocol == "graphql-transport-ws":
-                LOG.warning(
-                    "The WebSocket connection will be closed due to: Forbidden!"
-                )
+            LOG.warning('GraphQL connection error: %s!', ex, exc_info=ex)
+            if self._graphql_ws_subprotocol == 'graphql-transport-ws':
+                LOG.warning('The WebSocket connection will be closed due to: Forbidden!')
                 # According to `graphql-transport-ws` protocol
                 # description if error while connection initialization
                 # occurred we must close connection immediately with
@@ -675,7 +623,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
                 self._ping_task = asyncio.create_task(ping_sender())
 
-                if self._graphql_ws_subprotocol == "graphql-ws":
+                if self._graphql_ws_subprotocol == 'graphql-ws':
                     # Immediately send keepalive message cause it is
                     # required by the `graphql-ws` protocol description.
                     await self._send_gql_ping()
@@ -712,22 +660,21 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                 # description if subscription with received id already
                 # exists we must close connection immediately with
                 # code 4409.
-                if self._graphql_ws_subprotocol == "graphql-transport-ws":
+                if self._graphql_ws_subprotocol == 'graphql-transport-ws':
                     LOG.warning(
-                        "The WebSocket connection will be closed due to: "
-                        "Subscriber for %s already exists!",
+                        'The WebSocket connection will be closed due to: Subscriber for %s already exists!',
                         op_id,
                     )
                     await self.close(code=4409)
                     return
 
-                message = f"Subscription with msg_id={op_id} already exists!"
+                message = f'Subscription with msg_id={op_id} already exists!'
                 raise graphql.error.GraphQLError(message)
 
             # Get the message data.
-            query = payload["query"]
-            op_name = payload.get("operationName")
-            variables = payload.get("variables", {})
+            query = payload['query']
+            op_name = payload.get('operationName')
+            variables = payload.get('variables', {})
 
             # Prepare a context object.
             context = DictAsObject({})
@@ -737,11 +684,9 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             context.graphql_operation_id = op_id
 
             # Process the request with Graphene and GraphQL-core.
-            doc_ast, op_ast, errors = await self._on_gql_subscribe__parse_query(
-                op_name, query
-            )
+            doc_ast, op_ast, errors = await self._on_gql_subscribe__parse_query(op_name, query)
             if errors:
-                if self._graphql_ws_subprotocol == "graphql-transport-ws":
+                if self._graphql_ws_subprotocol == 'graphql-transport-ws':
                     await self._send_gql_error(op_id, errors)
                 else:
                     await self._send_gql_next(op_id, None, errors)
@@ -754,7 +699,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             # If the operation is subscription.
             if op_ast.operation == graphql.language.ast.OperationType.SUBSCRIPTION:
                 LOG.debug(
-                    "Subscription request. Operation ID: %s, operation name: %s.)",
+                    'Subscription request. Operation ID: %s, operation name: %s.)',
                     op_id,
                     op_name,
                 )
@@ -778,9 +723,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                 # When subscription_result is an AsyncGenerator, consume
                 # stream of notifications and send them to clients.
                 if not isinstance(subscription_result, graphql.ExecutionResult):
-                    stream = cast(
-                        AsyncIterator[graphql.ExecutionResult], subscription_result
-                    )
+                    stream = cast(AsyncIterator[graphql.ExecutionResult], subscription_result)
                     # Send subscription activation message (if enabled)
                     # NOTE: We do it before reading the the stream
                     # stream to guarantee that no notifications are sent
@@ -788,8 +731,8 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                     if self.confirm_subscriptions:
                         await self._send_gql_next(
                             op_id,
-                            data=self.subscription_confirmation_message["data"],
-                            errors=self.subscription_confirmation_message["errors"],
+                            data=self.subscription_confirmation_message['data'],
+                            errors=self.subscription_confirmation_message['errors'],
                         )
 
                     consumer_init_done = asyncio.Event()
@@ -803,20 +746,17 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                                 # when we have something to send.
                                 if item.data or item.errors:
                                     try:
-                                        await self._send_gql_next(
-                                            op_id, item.data, item.errors
-                                        )
+                                        await self._send_gql_next(op_id, item.data, item.errors)
                                     except asyncio.CancelledError:
                                         break
                         except Exception as ex:  # pylint: disable=broad-except
                             LOG.debug(
-                                "Exception in the subscription GraphQL resolver!"
-                                "Operation %s(%s).",
+                                'Exception in the subscription GraphQL resolver!Operation %s(%s).',
                                 op_name,
                                 op_id,
                                 exc_info=ex,
                             )
-                            if self._graphql_ws_subprotocol == "graphql-transport-ws":
+                            if self._graphql_ws_subprotocol == 'graphql-transport-ws':
                                 await self._send_gql_error(op_id, [ex])
                             else:
                                 await self._send_gql_next(op_id, None, [ex])
@@ -843,7 +783,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
             # If the operation is query or mutation.
             else:
-                LOG.debug("New query/mutation. Operation %s(%s).", op_name, op_id)
+                LOG.debug('New query/mutation. Operation %s(%s).', op_name, op_id)
 
                 if self.warn_operation_timeout is not None:
                     start_time = time.perf_counter()
@@ -855,7 +795,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                 # it will eat up more CPU pre each query. For now lets
                 # check only a query name.
                 middleware_manager = self._middleware
-                if op_name == "IntrospectionQuery":
+                if op_name == 'IntrospectionQuery':
                     # No need to call middlewares for the
                     # IntrospectionQuery. There no real resolvers. Only
                     # the type information.
@@ -877,15 +817,13 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                     duration = time.perf_counter() - start_time
                     if duration >= self.warn_operation_timeout:
                         LOG.warning(
-                            "Operation %s(%s) took %.6f seconds. Debug"
-                            " log contains full operation details.",
+                            'Operation %s(%s) took %.6f seconds. Debug log contains full operation details.',
                             op_name,
                             op_id,
                             duration,
                         )
                         LOG.debug(
-                            "Operation %s(%s) took %.6f seconds. Query:"
-                            " %r, variables: %r.",
+                            'Operation %s(%s) took %.6f seconds. Query: %r, variables: %r.',
                             op_name,
                             op_id,
                             duration,
@@ -893,30 +831,25 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                             variables,
                         )
             # Respond to a query or mutation immediately.
-            await self._send_gql_next(
-                op_id, operation_result.data, operation_result.errors
-            )
+            await self._send_gql_next(op_id, operation_result.data, operation_result.errors)
             await self._send_gql_complete(op_id)
 
         except Exception as ex:  # pylint: disable=broad-except
-            if (
-                isinstance(ex, graphql.error.GraphQLError)
-                and self._graphql_ws_subprotocol == "graphql-ws"
-            ):
+            if isinstance(ex, graphql.error.GraphQLError) and self._graphql_ws_subprotocol == 'graphql-ws':
                 # Respond with details of GraphQL execution error.
-                LOG.warning(
-                    "GraphQL error! Operation %s(%s).", op_name, op_id, exc_info=True
-                )
+                LOG.warning('GraphQL error! Operation %s(%s).', op_name, op_id, exc_info=True)
                 await self._send_gql_next(op_id, None, [ex])
                 await self._send_gql_complete(op_id)
             else:
                 # Respond with general error response.
                 await self._send_gql_error(op_id, [ex])
 
-    async def _on_gql_subscribe__parse_query(self, op_name: str, query: str) -> Tuple[
-        Optional[graphql.DocumentNode],
-        Optional[graphql.OperationDefinitionNode],
-        Optional[Iterable[graphql.GraphQLError]],
+    async def _on_gql_subscribe__parse_query(
+        self, op_name: str, query: str
+    ) -> tuple[
+        graphql.DocumentNode | None,
+        graphql.OperationDefinitionNode | None,
+        Iterable[graphql.GraphQLError] | None,
     ]:
         """Parse and validate GraphQL query.
 
@@ -943,19 +876,19 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             self._on_gql_subscribe__parse_query_sync_cached, thread_sensitive=False
         )(op_name, query)
 
-        doc_ast: Optional[graphql.DocumentNode] = res[0]
-        op_ast: Optional[graphql.OperationDefinitionNode] = res[1]
-        errors: Optional[Iterable[graphql.GraphQLError]] = res[2]
+        doc_ast: graphql.DocumentNode | None = res[0]
+        op_ast: graphql.OperationDefinitionNode | None = res[1]
+        errors: Iterable[graphql.GraphQLError] | None = res[2]
 
         return (doc_ast, op_ast, errors)
 
-    @functools.lru_cache(maxsize=128)
+    @functools.lru_cache(maxsize=128)  # noqa: B019
     def _on_gql_subscribe__parse_query_sync_cached(
         self, op_name: str, query: str
-    ) -> Tuple[
-        Optional[graphql.DocumentNode],
-        Optional[graphql.OperationDefinitionNode],
-        Optional[Iterable[graphql.GraphQLError]],
+    ) -> tuple[
+        graphql.DocumentNode | None,
+        graphql.OperationDefinitionNode | None,
+        Iterable[graphql.GraphQLError] | None,
     ]:
         """Parse and validate GraphQL query. Cached sync implementation.
 
@@ -971,9 +904,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             return None, None, [ex]
 
         # Validation.
-        validation_errors: List[graphql.GraphQLError] = graphql.validate(
-            self.schema.graphql_schema, doc_ast
-        )
+        validation_errors: list[graphql.GraphQLError] = graphql.validate(self.schema.graphql_schema, doc_ast)
         if validation_errors:
             return None, None, validation_errors
 
@@ -986,13 +917,13 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         document: graphql.DocumentNode,
         root_value: Any = None,
         context_value: Any = None,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
-        field_resolver: Optional[graphql.GraphQLFieldResolver] = None,
-        subscribe_field_resolver: Optional[graphql.GraphQLFieldResolver] = None,
+        variable_values: dict[str, Any] | None = None,
+        operation_name: str | None = None,
+        field_resolver: graphql.GraphQLFieldResolver | None = None,
+        subscribe_field_resolver: graphql.GraphQLFieldResolver | None = None,
         middleware: graphql.Middleware = None,
-        execution_context_class: Optional[Type[graphql.ExecutionContext]] = None,
-    ) -> Union[AsyncIterator[graphql.ExecutionResult], graphql.ExecutionResult]:
+        execution_context_class: type[graphql.ExecutionContext] | None = None,
+    ) -> AsyncIterator[graphql.ExecutionResult] | graphql.ExecutionResult:
         """Create a GraphQL subscription.
 
         This is a copy of `graphql.execution.subscribe.subscribe` from
@@ -1093,15 +1024,11 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # Invoke the subclass-specified `subscribe` method to get
         # the groups subscription must be attached to.
         if subscription_class._meta.subscribe is not None:
-            subclass_groups = subscription_class._meta.subscribe(
-                root, info, *args, **kwds
-            )
+            subclass_groups = subscription_class._meta.subscribe(root, info, *args, **kwds)
             # Properly handle `async def subscribe`.
             if asyncio.iscoroutinefunction(subscription_class._meta.subscribe):
                 subclass_groups = await subclass_groups
-            assert subclass_groups is None or isinstance(
-                subclass_groups, (list, tuple)
-            ), (
+            assert subclass_groups is None or isinstance(subclass_groups, (list, tuple)), (
                 f"Method 'subscribe' returned a value of an incorrect type"
                 f" {type(subclass_groups)}! A list, a tuple, or 'None' expected."
             )
@@ -1136,7 +1063,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             """
 
             if unsubscribed is None:
-                return None
+                return
             result = unsubscribed(None, info, *args, **kwds)
             # Properly handle `async def unsubscribed`.
             if inspect.isawaitable(result):
@@ -1165,7 +1092,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                         # safe to drop intermediate notifications.
                         if notification_queue.maxsize != 1:
                             LOG.warning(
-                                "Subscription notification dropped! Operation %s(%s).",
+                                'Subscription notification dropped! Operation %s(%s).',
                                 operation_name,
                                 operation_id,
                             )
@@ -1188,11 +1115,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         wait_list = []
         for group in groups:
             self._sids_by_group.setdefault(group, []).append(operation_id)
-            wait_list.append(
-                asyncio.create_task(
-                    self._channel_layer.group_add(group, self.channel_name)
-                )
-            )
+            wait_list.append(asyncio.create_task(self._channel_layer.group_add(group, self.channel_name)))
         self._subscriptions[operation_id] = self._SubInf(
             groups=groups,
             sid=operation_id,
@@ -1202,9 +1125,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         if wait_list:
             await asyncio.wait(wait_list)
 
-        _deserialize = channels.db.database_sync_to_async(
-            Serializer.deserialize, thread_sensitive=False
-        )
+        _deserialize = channels.db.database_sync_to_async(Serializer.deserialize, thread_sensitive=False)
 
         # For each notification (event) yielded from this function the
         # `_on_gql_subscribe__create_subscription` function will call
@@ -1227,7 +1148,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         this method is either awaited directly or offloaded to an async
         task. See the `receive_json` handler.
         """
-        LOG.debug("Stop handling or unsubscribe operation %s.", op_id)
+        LOG.debug('Stop handling or unsubscribe operation %s.', op_id)
 
         # Currently only subscriptions can be stopped. But we see that
         # some clients (e.g. GraphiQL) send the complete/stop message
@@ -1236,7 +1157,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         if op_id not in self._subscriptions:
             return
 
-        wait_list: List[asyncio.Task] = []
+        wait_list: list[asyncio.Task] = []
 
         # Remove the subscription from the registry.
         sub_inf = self._subscriptions.pop(op_id)
@@ -1254,17 +1175,13 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             # subscriptions left in it.
             assert self._sids_by_group[group].count(op_id) == 1, (
                 f"Registry is inconsistent: group '{group}' has "
-                f"{self._sids_by_group[group].count(op_id)} "
-                "occurrences of op_id={op_id}!"
+                f'{self._sids_by_group[group].count(op_id)} '
+                'occurrences of op_id={op_id}!'
             )
             self._sids_by_group[group].remove(op_id)
             if not self._sids_by_group[group]:
                 del self._sids_by_group[group]
-                wait_list.append(
-                    asyncio.create_task(
-                        self._channel_layer.group_discard(group, self.channel_name)
-                    )
-                )
+                wait_list.append(asyncio.create_task(self._channel_layer.group_discard(group, self.channel_name)))
 
         if wait_list:
             await asyncio.wait(wait_list)
@@ -1278,33 +1195,21 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
     async def _send_gql_connection_ack(self):
         """Sent in reply to the `connection_init` request."""
-        await self.send_json({"type": "connection_ack"})
+        await self.send_json({'type': 'connection_ack'})
 
     async def _send_gql_ping(self):
         """Send the `ping`/`ka` message to the client."""
-        await self.send_json(
-            {
-                "type": (
-                    "ping"
-                    if self._graphql_ws_subprotocol == "graphql-transport-ws"
-                    else "ka"
-                )
-            }
-        )
+        await self.send_json({'type': ('ping' if self._graphql_ws_subprotocol == 'graphql-transport-ws' else 'ka')})
 
     async def _send_gql_pong(self):
         """Sent in reply to the `ping` request."""
-        await self.send_json({"type": "pong"})
+        await self.send_json({'type': 'pong'})
 
     async def _send_gql_connection_error(self, error: Exception):
         """Connection error sent in reply to the `connection_init`."""
-        await self.send_json(
-            {"type": "connection_error", "payload": self._format_error(error)}
-        )
+        await self.send_json({'type': 'connection_error', 'payload': self._format_error(error)})
 
-    async def _send_gql_next(
-        self, op_id, data: Optional[dict], errors: Optional[Iterable[Exception]]
-    ):
+    async def _send_gql_next(self, op_id, data: dict | None, errors: Iterable[Exception] | None):
         """Send GraphQL `next`/`data` message with data to the client.
 
         Args:
@@ -1319,24 +1224,20 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             # reference to the original error raised from a resolver.
             tb = ex.__traceback__
             LOG.warning(
-                "GraphQL resolver failed! Operation id: %s:\n%s",
+                'GraphQL resolver failed! Operation id: %s:\n%s',
                 op_id,
-                "".join(traceback.format_exception(type(ex), ex, tb)).strip(),
+                ''.join(traceback.format_exception(type(ex), ex, tb)).strip(),
             )
 
         await self.send_json(
             {
-                "type": (
-                    "next"
-                    if self._graphql_ws_subprotocol == "graphql-transport-ws"
-                    else "data"
-                ),
-                "id": op_id,
-                "payload": {
-                    "data": data,
+                'type': ('next' if self._graphql_ws_subprotocol == 'graphql-transport-ws' else 'data'),
+                'id': op_id,
+                'payload': {
+                    'data': data,
                     **(
                         {
-                            "errors": [  # type: ignore
+                            'errors': [  # type: ignore
                                 self._format_error(e) for e in errors
                             ]
                         }
@@ -1364,21 +1265,17 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         """
         formatted_errors = []
         for error in errors:
-            LOG.warning(
-                "Operation %s processing error: %s!", op_id, error, exc_info=error
-            )
+            LOG.warning('Operation %s processing error: %s!', op_id, error, exc_info=error)
             formatted_error = self._format_error(error)
             formatted_errors.append(formatted_error)
         payload = (
-            formatted_errors
-            if self._graphql_ws_subprotocol == "graphql-transport-ws"
-            else {"errors": formatted_errors}
+            formatted_errors if self._graphql_ws_subprotocol == 'graphql-transport-ws' else {'errors': formatted_errors}
         )
         await self.send_json(
             {
-                "type": "error",
-                "id": op_id,
-                "payload": payload,
+                'type': 'error',
+                'id': op_id,
+                'payload': payload,
             }
         )
 
@@ -1389,7 +1286,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             op_id: Id of the corresponding operation.
 
         """
-        await self.send_json({"type": "complete", "id": op_id})
+        await self.send_json({'type': 'complete', 'id': op_id})
 
     # ---------------------------------------------------------------------- AUXILIARIES
 
@@ -1438,17 +1335,16 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         use a GraphQLError based classes for your exceptions.
         """
         if isinstance(error, graphql.error.GraphQLError):
-            if error.extensions and "code" not in error.extensions:
-                if error.original_error:
-                    error.extensions["code"] = type(error.original_error).__name__
+            if error.extensions and 'code' not in error.extensions and error.original_error:
+                error.extensions['code'] = type(error.original_error).__name__
             return error.formatted
 
         # Usually the GraphQL-core library wraps any exception with
         # GraphQLError. So this code should be unreachable, unless there
         # are some bugs in the library.
         return {
-            "message": f"{type(error).__name__}: {str(error)}",
-            "extensions": {"code": type(error).__name__},
+            'message': f'{type(error).__name__}: {str(error)}',
+            'extensions': {'code': type(error).__name__},
         }
 
     def _spawn_background_task(self, awaitable):
@@ -1470,5 +1366,5 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         """Channel layer."""
         # We cannot simply check existence of channel layer in the
         # consumer constructor, so we added this property.
-        assert self.channel_layer is not None, "Channel layer is not configured!"
+        assert self.channel_layer is not None, 'Channel layer is not configured!'
         return self.channel_layer

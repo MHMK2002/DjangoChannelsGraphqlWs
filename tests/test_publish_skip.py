@@ -31,7 +31,7 @@ import channels_graphql_ws
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("subprotocol", ["graphql-transport-ws", "graphql-ws"])
+@pytest.mark.parametrize('subprotocol', ['graphql-transport-ws', 'graphql-ws'])
 async def test_publish_skip(gql, subprotocol):
     """Test it is possible to skip the broadcast from the `publish`.
 
@@ -40,7 +40,7 @@ async def test_publish_skip(gql, subprotocol):
     another client receives it.
     """
 
-    print("Prepare the test setup: GraphQL backend classes.")
+    print('Prepare the test setup: GraphQL backend classes.')
 
     def sessionid_from_headers(headers):
         """Extract sessionid from headers with known structure.
@@ -50,12 +50,10 @@ async def test_publish_skip(gql, subprotocol):
         """
         # Expected headers list looks like:
         # [(b"cookie", b"sessionid=acea05bbb40941a488d5e9a830e67354")]
-        assert (
-            len(headers) == 1 and headers[0][0] == b"cookie"
-        ), f"Unexpected headers received: {headers}"
+        assert len(headers) == 1 and headers[0][0] == b'cookie', f'Unexpected headers received: {headers}'
         cookie_header = headers[0][1].decode()
         cookie: http.cookies.SimpleCookie = http.cookies.SimpleCookie(cookie_header)
-        sessionid = cookie["sessionid"].value
+        sessionid = cookie['sessionid'].value
         return sessionid
 
     class SendMessage(graphene.Mutation):
@@ -74,10 +72,8 @@ async def test_publish_skip(gql, subprotocol):
             del root
             OnNewMessage.broadcast(
                 payload={
-                    "author_sessionid": sessionid_from_headers(
-                        info.context.channels_scope["headers"]
-                    ),
-                    "message": message,
+                    'author_sessionid': sessionid_from_headers(info.context.channels_scope['headers']),
+                    'message': message,
                 }
             )
             return SendMessage(is_ok=True)
@@ -90,11 +86,11 @@ async def test_publish_skip(gql, subprotocol):
         @staticmethod
         def publish(payload, info):
             """Notify all clients except the author of the message."""
-            sessionid = sessionid_from_headers(info.context.channels_scope["headers"])
-            if payload["author_sessionid"] == sessionid:
+            sessionid = sessionid_from_headers(info.context.channels_scope['headers'])
+            if payload['author_sessionid'] == sessionid:
                 return None
 
-            return OnNewMessage(message=payload["message"])
+            return OnNewMessage(message=payload['message'])
 
     class Subscription(graphene.ObjectType):
         """Root subscription."""
@@ -106,15 +102,13 @@ async def test_publish_skip(gql, subprotocol):
 
         send_message = SendMessage.Field()
 
-    print("Establish & initialize WebSocket GraphQL connections.")
+    print('Establish & initialize WebSocket GraphQL connections.')
 
     comm1 = gql(
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True},
-        communicator_kwds={
-            "headers": [(b"cookie", b"sessionid=%s" % uuid.uuid4().hex.encode())]
-        },
+        consumer_attrs={'strict_ordering': True},
+        communicator_kwds={'headers': [(b'cookie', b'sessionid=%s' % uuid.uuid4().hex.encode())]},
         subprotocol=subprotocol,
     )
     await comm1.connect_and_init()
@@ -122,47 +116,41 @@ async def test_publish_skip(gql, subprotocol):
     comm2 = gql(
         mutation=Mutation,
         subscription=Subscription,
-        consumer_attrs={"strict_ordering": True},
-        communicator_kwds={
-            "headers": [(b"cookie", b"sessionid=%s" % uuid.uuid4().hex.encode())]
-        },
+        consumer_attrs={'strict_ordering': True},
+        communicator_kwds={'headers': [(b'cookie', b'sessionid=%s' % uuid.uuid4().hex.encode())]},
         subprotocol=subprotocol,
     )
     await comm2.connect_and_init()
 
-    print("Subscribe to receive a new message notifications.")
+    print('Subscribe to receive a new message notifications.')
 
     await comm1.start(
-        query="subscription op_name { on_new_message { message } }",
-        operation_name="op_name",
+        query='subscription op_name { on_new_message { message } }',
+        operation_name='op_name',
     )
-    await comm1.assert_no_messages("Subscribe responded with a message!")
+    await comm1.assert_no_messages('Subscribe responded with a message!')
 
     sub_op_id = await comm2.start(
-        query="subscription op_name { on_new_message { message } }",
-        operation_name="op_name",
+        query='subscription op_name { on_new_message { message } }',
+        operation_name='op_name',
     )
-    await comm2.assert_no_messages("Subscribe responded with a message!")
+    await comm2.assert_no_messages('Subscribe responded with a message!')
 
-    print("Send a new message to check we have not received notification about it.")
+    print('Send a new message to check we have not received notification about it.')
 
     mut_op_id = await comm1.start(
         query="""mutation op_name { send_message(message: "Hi!") { is_ok } }""",
-        operation_name="op_name",
+        operation_name='op_name',
     )
     await comm1.receive_next(mut_op_id)
     await comm1.receive_complete(mut_op_id)
 
-    await comm1.assert_no_messages("Self-notification happened!")
+    await comm1.assert_no_messages('Self-notification happened!')
 
     resp = await comm2.receive_next(sub_op_id)
-    assert resp["data"]["on_new_message"]["message"] == "Hi!"
+    assert resp['data']['on_new_message']['message'] == 'Hi!'
 
-    await comm1.assert_no_messages(
-        "Unexpected message received at the end of the test!"
-    )
-    await comm2.assert_no_messages(
-        "Unexpected message received at the end of the test!"
-    )
+    await comm1.assert_no_messages('Unexpected message received at the end of the test!')
+    await comm2.assert_no_messages('Unexpected message received at the end of the test!')
     await comm1.finalize()
     await comm2.finalize()

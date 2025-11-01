@@ -23,8 +23,8 @@
 """GraphQL WebSocket client transport."""
 
 import asyncio
+import contextlib
 import json
-from typing import Optional
 
 import aiohttp
 
@@ -35,25 +35,25 @@ class GraphqlWsTransport:
     # Default timeout for the WebSocket messages.
     TIMEOUT: float = 60.0
 
-    async def connect(self, timeout: Optional[float] = None) -> None:
+    async def connect(self, timeout: float | None = None) -> None:
         """Connect to the server."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     async def send(self, message: dict) -> None:
         """Send message."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    async def receive(self, timeout: Optional[float] = None) -> dict:
+    async def receive(self, timeout: float | None = None) -> dict:
         """Receive message."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    async def disconnect(self, timeout: Optional[float] = None) -> None:
+    async def disconnect(self, timeout: float | None = None) -> None:
         """Disconnect from the server."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    async def wait_disconnect(self, timeout: Optional[float] = None) -> dict:
+    async def wait_disconnect(self, timeout: float | None = None) -> dict:
         """Wait server to close the connection."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class GraphqlWsTransportAiohttp(GraphqlWsTransport):
@@ -81,9 +81,7 @@ class GraphqlWsTransportAiohttp(GraphqlWsTransport):
         # A queue for incoming messages.
         self._incoming_messages: asyncio.Queue = asyncio.Queue()
 
-    async def connect(
-        self, timeout: Optional[float] = None, subprotocol="graphql-transport-ws"
-    ) -> None:
+    async def connect(self, timeout: float | None = None, subprotocol='graphql-transport-ws') -> None:
         """Establish a connection with the WebSocket server.
 
         Args:
@@ -94,28 +92,28 @@ class GraphqlWsTransportAiohttp(GraphqlWsTransport):
 
         """
         assert subprotocol in (
-            "graphql-transport-ws",
-            "graphql-ws",
-        ), "Transport only supports graphql-transport-ws and graphql-ws subprotocols!"
+            'graphql-transport-ws',
+            'graphql-ws',
+        ), 'Transport only supports graphql-transport-ws and graphql-ws subprotocols!'
         connected = asyncio.Event()
         self._message_processor = asyncio.create_task(
             self._process_messages(connected, timeout or self.TIMEOUT, subprotocol)
         )
         await asyncio.wait(
-            [connected.wait(), self._message_processor],
+            [asyncio.create_task(connected.wait()), self._message_processor],
             return_when=asyncio.FIRST_COMPLETED,
         )
         if self._message_processor.done():
             # Make sure to raise an exception from the task.
             self._message_processor.result()
-            raise RuntimeError(f"Failed to connect to the server: {self._url}!")
+            raise RuntimeError(f'Failed to connect to the server: {self._url}!')
 
     async def send(self, message: dict) -> None:
         """Send message."""
-        assert self._connection is not None, "Client is not connected!"
+        assert self._connection is not None, 'Client is not connected!'
         await self._connection.send_str(json.dumps(message))
 
-    async def receive(self, timeout: Optional[float] = None) -> dict:
+    async def receive(self, timeout: float | None = None) -> dict:
         """Wait and receive a message from the WebSocket connection.
 
         Method fails if the connection closes.
@@ -130,10 +128,8 @@ class GraphqlWsTransportAiohttp(GraphqlWsTransport):
 
         # Wait and receive the message.
         try:
-            payload = await asyncio.wait_for(
-                self._incoming_messages.get(), timeout or self.TIMEOUT
-            )
-            assert isinstance(payload, str), "Non-string data received!"
+            payload = await asyncio.wait_for(self._incoming_messages.get(), timeout or self.TIMEOUT)
+            assert isinstance(payload, str), 'Non-string data received!'
             return dict(json.loads(payload))
         except asyncio.TimeoutError as ex:
             # See if we have another error to raise inside.
@@ -141,27 +137,23 @@ class GraphqlWsTransportAiohttp(GraphqlWsTransport):
                 self._message_processor.result()
             raise ex
 
-    async def disconnect(self, timeout: Optional[float] = None) -> None:
+    async def disconnect(self, timeout: float | None = None) -> None:
         """Close the connection gracefully."""
         await self._connection.close(code=1000)
         try:
-            await asyncio.wait_for(
-                asyncio.shield(self._message_processor), timeout or self.TIMEOUT
-            )
+            await asyncio.wait_for(asyncio.shield(self._message_processor), timeout or self.TIMEOUT)
             self._message_processor.result()
         except asyncio.TimeoutError:
             pass
         finally:
             if not self._message_processor.done():
                 self._message_processor.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self._message_processor
-                except asyncio.CancelledError:
-                    pass
 
-    async def wait_disconnect(self, timeout: Optional[float] = None) -> dict:
+    async def wait_disconnect(self, timeout: float | None = None) -> dict:
         """Wait server to close the connection."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     async def _process_messages(self, connected, timeout, subprotocol):
         """Process messages coming from the connection.
@@ -180,9 +172,7 @@ class GraphqlWsTransportAiohttp(GraphqlWsTransport):
             )
             async with connection as self._connection:
                 if self._connection.protocol != subprotocol:
-                    raise RuntimeError(
-                        f"Server uses wrong subprotocol: {self._connection.protocol}!"
-                    )
+                    raise RuntimeError(f'Server uses wrong subprotocol: {self._connection.protocol}!')
                 connected.set()
                 async for msg in self._connection:
                     await self._incoming_messages.put(msg.data)
