@@ -34,7 +34,7 @@ build-backend = "poetry.core.masonry.api"
 # Docs: https://python-poetry.org/docs/
 [tool.poetry]
 name = "django-channels-graphql-ws-next"
-version = "1.0.1"
+version = "1.0.2"
 description = """Django Channels based WebSocket GraphQL server with Graphene-like subscriptions"""
 authors = ["Mohammad Hasan Mohammad Khani"]
 homepage = "https://github.com/MHMK2002/DjangoChannelsGraphqlWs"
@@ -49,7 +49,7 @@ python = ">=3.10,<4"
 aiohttp = "^3.13"
 asgiref = "^3"
 channels = "^4"
-Django = "^5"
+Django = ">=4.2,<6.0"
 graphene = "^3"
 graphql-core = "3.2.6" # Carefully test after upgrade, since we path private internals.
 msgpack = "^1"

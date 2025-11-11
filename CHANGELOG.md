@@ -23,6 +23,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 # Changelog
 
+## [1.0.2] - 2025-11-11
+- Fixed compatibility with Django 4.
+
 ## [1.0.1] - 2025-11-01
 
 - Fork the library to make it compatible with Django 5 and new versions of other libraries.
