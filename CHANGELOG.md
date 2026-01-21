@@ -21,7 +21,9 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 
-# Changelog
+## [1.0.2] - 2026-01-21
+### Added
+- Added `exceptions_to_ignore` attribute to allow suppressing logging of selected exceptions during GraphQL WebSocket connection handling.
 
 ## [1.0.2] - 2025-11-11
 - Fixed compatibility with Django 4.

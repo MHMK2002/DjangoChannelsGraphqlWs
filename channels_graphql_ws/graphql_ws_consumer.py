@@ -158,6 +158,8 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
     # GraphQL-core sources to know more.
     middleware: graphql.Middleware | None = None
 
+    exceptions_to_ignore: list[type[Exception]] = []
+
     async def on_connect(self, payload):
         """Client connection handler.
 
@@ -390,10 +392,10 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             task = self._on_gql_connection_terminate()
 
         elif (
-            msg_type == 'SUBSCRIBE'
-            and self._graphql_ws_subprotocol == 'graphql-transport-ws'
-            or msg_type == 'START'
-            and self._graphql_ws_subprotocol == 'graphql-ws'
+                msg_type == 'SUBSCRIBE'
+                and self._graphql_ws_subprotocol == 'graphql-transport-ws'
+                or msg_type == 'START'
+                and self._graphql_ws_subprotocol == 'graphql-ws'
         ):
             # According to `graphql-transport-ws` protocol description,
             # if `subscribe` message received before the server has
@@ -435,10 +437,10 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             task = on_subscribe()
 
         elif (
-            msg_type == 'COMPLETE'
-            and self._graphql_ws_subprotocol == 'graphql-transport-ws'
-            or msg_type == 'STOP'
-            and self._graphql_ws_subprotocol == 'graphql-ws'
+                msg_type == 'COMPLETE'
+                and self._graphql_ws_subprotocol == 'graphql-transport-ws'
+                or msg_type == 'STOP'
+                and self._graphql_ws_subprotocol == 'graphql-ws'
         ):
             op_id = content['id']
 
@@ -581,7 +583,8 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
             # Notify subclass a new client is connected.
             await self.on_connect(payload)
         except Exception as ex:  # pylint: disable=broad-except
-            LOG.warning('GraphQL connection error: %s!', ex, exc_info=ex)
+            if not self._is_errorr_ignored(ex):
+                LOG.warning('GraphQL connection error: %s!', ex, exc_info=ex)
             if self._graphql_ws_subprotocol == 'graphql-transport-ws':
                 LOG.warning('The WebSocket connection will be closed due to: Forbidden!')
                 # According to `graphql-transport-ws` protocol
@@ -845,7 +848,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                 await self._send_gql_error(op_id, [ex])
 
     async def _on_gql_subscribe__parse_query(
-        self, op_name: str, query: str
+            self, op_name: str, query: str
     ) -> tuple[
         graphql.DocumentNode | None,
         graphql.OperationDefinitionNode | None,
@@ -884,7 +887,7 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
 
     @functools.lru_cache(maxsize=128)  # noqa: B019
     def _on_gql_subscribe__parse_query_sync_cached(
-        self, op_name: str, query: str
+            self, op_name: str, query: str
     ) -> tuple[
         graphql.DocumentNode | None,
         graphql.OperationDefinitionNode | None,
@@ -913,16 +916,16 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         return doc_ast, op_ast, None
 
     async def _on_gql_subscribe__create_subscription(
-        self,
-        document: graphql.DocumentNode,
-        root_value: Any = None,
-        context_value: Any = None,
-        variable_values: dict[str, Any] | None = None,
-        operation_name: str | None = None,
-        field_resolver: graphql.GraphQLFieldResolver | None = None,
-        subscribe_field_resolver: graphql.GraphQLFieldResolver | None = None,
-        middleware: graphql.Middleware = None,
-        execution_context_class: type[graphql.ExecutionContext] | None = None,
+            self,
+            document: graphql.DocumentNode,
+            root_value: Any = None,
+            context_value: Any = None,
+            variable_values: dict[str, Any] | None = None,
+            operation_name: str | None = None,
+            field_resolver: graphql.GraphQLFieldResolver | None = None,
+            subscribe_field_resolver: graphql.GraphQLFieldResolver | None = None,
+            middleware: graphql.Middleware = None,
+            execution_context_class: type[graphql.ExecutionContext] | None = None,
     ) -> AsyncIterator[graphql.ExecutionResult] | graphql.ExecutionResult:
         """Create a GraphQL subscription.
 
@@ -983,13 +986,13 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         return graphql.MapAsyncIterator(result_or_stream, map_source_to_response)
 
     async def _on_gql_subscribe__initialize_subscription_stream(
-        self,
-        operation_id: int,
-        operation_name: str,
-        root: Any,
-        info: graphql.GraphQLResolveInfo,
-        *args,
-        **kwds,
+            self,
+            operation_id: int,
+            operation_name: str,
+            root: Any,
+            info: graphql.GraphQLResolveInfo,
+            *args,
+            **kwds,
     ):
         """Create asynchronous generator with subscription events.
 
@@ -1368,3 +1371,6 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
         # consumer constructor, so we added this property.
         assert self.channel_layer is not None, 'Channel layer is not configured!'
         return self.channel_layer
+
+    def _is_errorr_ignored(self, error: Exception) -> bool:
+        return any(isinstance(error, err) for err in self.exceptions_to_ignore)

@@ -34,7 +34,7 @@ build-backend = "poetry.core.masonry.api"
 # Docs: https://python-poetry.org/docs/
 [tool.poetry]
 name = "django-channels-graphql-ws-next"
-version = "1.0.2"
+version = "1.0.3"
 description = """Django Channels based WebSocket GraphQL server with Graphene-like subscriptions"""
 authors = ["Mohammad Hasan Mohammad Khani"]
 homepage = "https://github.com/MHMK2002/DjangoChannelsGraphqlWs"
